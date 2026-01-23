@@ -4,7 +4,7 @@
   <title>Smallo Booth</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
@@ -16,28 +16,30 @@
     }
 
     .center {
+      height: 100vh;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
       gap: 20px;
+      text-align: center;
     }
 
     button {
-      padding: 16px 30px;
+      padding: 18px 36px;
       font-size: 18px;
-      border: none;
       border-radius: 14px;
+      border: none;
       background: #FFD166;
+      cursor: pointer;
     }
 
     .menu {
       background: #FFA552;
       color: white;
       padding: 12px;
-      text-align: center;
       font-weight: bold;
+      text-align: center;
     }
 
     .display {
@@ -79,39 +81,25 @@
 <div id="app"></div>
 
 <script>
-  // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-  authDomain: "smallo-live.firebaseapp.com",
-  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "smallo-live",
-  storageBucket: "smallo-live.firebasestorage.app",
-  messagingSenderId: "1017470725882",
-  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-  measurementId: "G-QTZTK6G2XL"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+  // 🔥 YOUR FIREBASE CONFIG (AS PROVIDED)
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+    authDomain: "smallo-live.firebaseapp.com",
+    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "smallo-live",
+    storageBucket: "smallo-live.firebasestorage.app",
+    messagingSenderId: "1017470725882",
+    appId: "1:1017470725882:web:929ee126247fcbb51e6343"
   };
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const actionRef = db.ref("action");
 
-  const mode = location.hash.replace("#","");
-
+  const mode = location.hash.replace("#", "");
   const app = document.getElementById("app");
 
-  /* LANDING PAGE */
+  /* ========= LANDING UI ========= */
   if (!mode) {
     app.innerHTML = `
       <div class="center">
@@ -122,12 +110,14 @@ const analytics = getAnalytics(app);
     `;
   }
 
-  /* DISPLAY PAGE */
+  /* ========= DISPLAY PAGE ========= */
   if (mode === "display") {
     app.innerHTML = `
-      <div class="menu" id="menu">🍫 Waiting...</div>
+      <div class="menu" id="menu">🍫 Waiting for action…</div>
       <div class="display">
-        <div class="placeholder" id="placeholder">Waiting for animation…</div>
+        <div class="placeholder" id="placeholder">
+          Waiting for animation…
+        </div>
         <video id="vid" autoplay loop muted></video>
       </div>
     `;
@@ -142,8 +132,8 @@ const analytics = getAnalytics(app);
 
       const file = action + ".mp4";
 
-      fetch(file).then(r => {
-        if (r.ok) {
+      fetch(file).then(res => {
+        if (res.ok) {
           placeholder.style.display = "none";
           video.style.display = "block";
           video.src = file;
@@ -153,13 +143,13 @@ const analytics = getAnalytics(app);
           placeholder.style.display = "flex";
         }
       }).catch(() => {
-        placeholder.style.display = "flex";
         video.style.display = "none";
+        placeholder.style.display = "flex";
       });
     });
   }
 
-  /* CONTROL PAGE */
+  /* ========= CONTROL PAGE ========= */
   if (mode === "control") {
     app.innerHTML = `
       <div class="controls">
