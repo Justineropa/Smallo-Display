@@ -1,152 +1,171 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Smallo Display</title>
+  <title>Smallo Booth</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <style>
     body {
       margin: 0;
-      background: #0b0b0b;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-family: Arial, sans-serif;
+      background: #FFF5E1;
+    }
+
+    .center {
       height: 100vh;
-      overflow: hidden;
-      font-family: system-ui, sans-serif;
-    }
-
-    .display {
-      width: 100%;
-      height: 100%;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      position: relative;
+      gap: 20px;
+      text-align: center;
     }
 
-    video, img {
-      max-width: 80%;
-      max-height: 80%;
-    }
-
-    video {
-      display: none;
-    }
-
-    img {
-      display: none;
-    }
-
-    /* PNG BOUNCE (ONLY APPLIES WHEN CLASS IS ADDED) */
-    .bounce {
-      animation: bounce 2.5s ease-in-out infinite;
-    }
-
-    @keyframes bounce {
-      0%   { transform: translateY(0); }
-      50%  { transform: translateY(-18px); }
-      100% { transform: translateY(0); }
-    }
-
-    .placeholder {
-      color: #888;
-      font-size: 1.4rem;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100%;
-      width: 100%;
-      position: absolute;
+    button {
+      padding: 18px 36px;
+      font-size: 18px;
+      border-radius: 14px;
+      border: none;
+      background: #FFD166;
+      cursor: pointer;
     }
 
     .menu {
-      position: absolute;
-      bottom: 20px;
-      color: #aaa;
-      font-size: 1.1rem;
-      opacity: 0.8;
+      background: #FFA552;
+      color: white;
+      padding: 12px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .display {
+      height: calc(100vh - 50px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .placeholder {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #999;
+      font-weight: bold;
+    }
+
+    video {
+      width: 80%;
+      display: none;
+    }
+
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="display">
-    <div class="placeholder" id="placeholder">
-      Waiting for action…
-    </div>
+<div id="app"></div>
 
-    <img id="img" />
-    <video id="vid" autoplay loop muted></video>
+<script>
+  // 🔥 YOUR FIREBASE CONFIG (AS PROVIDED)
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+    authDomain: "smallo-live.firebaseapp.com",
+    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "smallo-live",
+    storageBucket: "smallo-live.firebasestorage.app",
+    messagingSenderId: "1017470725882",
+    appId: "1:1017470725882:web:929ee126247fcbb51e6343"
+  };
 
-    <div class="menu" id="menu"></div>
-  </div>
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const actionRef = db.ref("action");
 
-  <script>
-    // Firebase config
-    const firebaseConfig = {
-      apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-      authDomain: "smallo-live.firebaseapp.com",
-      databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "smallo-live",
-      storageBucket: "smallo-live.firebasestorage.app",
-      messagingSenderId: "1017470725882",
-      appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-      measurementId: "G-QTZTK6G2XL"
-    };
+  const mode = location.hash.replace("#", "");
+  const app = document.getElementById("app");
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  /* ========= LANDING UI ========= */
+  if (!mode) {
+    app.innerHTML = `
+      <div class="center">
+        <h2>Smallo Booth</h2>
+        <button onclick="location.href='#display'">Open Display Page</button>
+        <button onclick="location.href='#control'">Open Control Page</button>
+      </div>
+    `;
+  }
 
-    const actionRef = db.ref("action");
+  /* ========= DISPLAY PAGE ========= */
+  if (mode === "display") {
+    app.innerHTML = `
+      <div class="menu" id="menu">🍫 Waiting for action…</div>
+      <div class="display">
+        <div class="placeholder" id="placeholder">
+          Waiting for animation…
+        </div>
+        <video id="vid" autoplay loop muted></video>
+      </div>
+    `;
 
-    const video = document.getElementById("vid");
-    const img = document.getElementById("img");
-    const placeholder = document.getElementById("placeholder");
     const menu = document.getElementById("menu");
+    const video = document.getElementById("vid");
+    const placeholder = document.getElementById("placeholder");
 
     actionRef.on("value", snap => {
       const action = snap.val() || "idle";
       menu.textContent = "🍫 Smallo is " + action;
 
-      const videoFile = action + ".mp4";
-      const imageFile = action + ".png";
+      const file = action + ".mp4";
 
-      // Reset
-      video.style.display = "none";
-      img.style.display = "none";
-      img.classList.remove("bounce");
-      placeholder.style.display = "none";
-
-      // Try video first
-      fetch(videoFile).then(res => {
+      fetch(file).then(res => {
         if (res.ok) {
-          video.src = videoFile;
+          placeholder.style.display = "none";
           video.style.display = "block";
+          video.src = file;
           video.play();
         } else {
-          // Try PNG
-          fetch(imageFile).then(imgRes => {
-            if (imgRes.ok) {
-              img.src = imageFile;
-              img.style.display = "block";
-              img.classList.add("bounce"); // ✅ PNG bounce ONLY
-            } else {
-              placeholder.style.display = "flex";
-            }
-          });
+          video.style.display = "none";
+          placeholder.style.display = "flex";
         }
       }).catch(() => {
+        video.style.display = "none";
         placeholder.style.display = "flex";
       });
     });
-  </script>
+  }
+
+  /* ========= CONTROL PAGE ========= */
+  if (mode === "control") {
+    app.innerHTML = `
+      <div class="controls">
+        <button onclick="setAction('idle')">Idle</button>
+        <button onclick="setAction('sleep')">Sleep</button>
+        <button onclick="setAction('smile')">Smile</button>
+        <button onclick="setAction('hello')">Hello</button>
+        <button onclick="setAction('thank')">Thank</button>
+      </div>
+    `;
+  }
+
+  function setAction(action) {
+    actionRef.set(action);
+  }
+</script>
 
 </body>
 </html>
