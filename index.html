@@ -1,30 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Smallo</title>
+  <title>Smallo Booth</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
 
-<body style="text-align:center; background:#FFF5E1;">
-
-  <video id="vid" width="300" autoplay loop muted></video>
-
-  <br><br>
-
-  <button onclick="play('idle.mp4')">Idle</button>
-  <button onclick="play('sleep.mp4')">Sleep</button>
-  <button onclick="play('smile.mp4')">Smile</button>
-  <button onclick="play('hello.mp4')">Hello</button>
-  <button onclick="play('thank.mp4')">Thank</button>
-
-  <script>
-    function play(file) {
-      const v = document.getElementById("vid");
-      v.src = file;
-      v.play();
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #FFF5E1;
     }
 
-    play('idle.mp4');
+    .menu {
+      background: #FFA552;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 50px);
+    }
+
+    .display {
+      flex: 2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .controls {
+      flex: 1;
+      padding: 20px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    button {
+      padding: 14px;
+      font-size: 16px;
+      border: none;
+      border-radius: 12px;
+      background: #FFD166;
+    }
+
+    .placeholder {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      color: #999;
+    }
+
+    video {
+      width: 80%;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- DISPLAY MENU -->
+  <div class="menu" id="menuText">
+    🍫 Smallo is idle
+  </div>
+
+  <div class="container">
+
+    <!-- DISPLAY AREA -->
+    <div class="display">
+      <div class="placeholder" id="placeholder">
+        Waiting for animation…
+      </div>
+      <video id="vid" autoplay loop muted></video>
+    </div>
+
+    <!-- CONTROL PANEL -->
+    <div class="controls" id="controls">
+      <button onclick="setState('idle')">Idle</button>
+      <button onclick="setState('sleep')">Sleep</button>
+      <button onclick="setState('smile')">Smile</button>
+      <button onclick="setState('hello')">Hello</button>
+      <button onclick="setState('thank')">Thank</button>
+    </div>
+
+  </div>
+
+  <script>
+    const mode = location.hash.replace('#','');
+    const controls = document.getElementById('controls');
+    const video = document.getElementById('vid');
+    const placeholder = document.getElementById('placeholder');
+    const menuText = document.getElementById('menuText');
+
+    if (mode === 'control') {
+      controls.style.display = 'flex';
+    }
+
+    function setState(action) {
+      localStorage.setItem('smallo-action', action);
+      updateDisplay();
+    }
+
+    function updateDisplay() {
+      const action = localStorage.getItem('smallo-action') || 'idle';
+      menuText.textContent = `🍫 Smallo is ${action}`;
+
+      const file = `${action}.mp4`;
+
+      fetch(file).then(res => {
+        if (res.ok) {
+          placeholder.style.display = 'none';
+          video.style.display = 'block';
+          video.src = file;
+          video.play();
+        } else {
+          video.style.display = 'none';
+          placeholder.style.display = 'flex';
+        }
+      });
+    }
+
+    window.addEventListener('storage', updateDisplay);
+    updateDisplay();
   </script>
 
 </body>
