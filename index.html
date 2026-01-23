@@ -1,39 +1,155 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Smallo Booth</title>
+  <meta charset="UTF-8" />
+  <title>Smallo Display</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #FFF5E1;
-    }
-
-    .center {
-      height: 100vh;
+      background: #0b0b0b;
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
-      gap: 20px;
-      text-align: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: system-ui, sans-serif;
     }
 
-    button {
-      padding: 18px 36px;
-      font-size: 18px;
-      border-radius: 14px;
-      border: none;
-      background: #FFD166;
-      cursor: pointer;
+    .display {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
     }
 
+    video, img {
+      max-width: 80%;
+      max-height: 80%;
+    }
+
+    video {
+      display: none;
+    }
+
+    img {
+      display: none;
+    }
+
+    /* PNG BOUNCE (ONLY APPLIES WHEN CLASS IS ADDED) */
+    .bounce {
+      animation: bounce 2.5s ease-in-out infinite;
+    }
+
+    @keyframes bounce {
+      0%   { transform: translateY(0); }
+      50%  { transform: translateY(-18px); }
+      100% { transform: translateY(0); }
+    }
+
+    .placeholder {
+      color: #888;
+      font-size: 1.4rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      width: 100%;
+      position: absolute;
+    }
+
+    .menu {
+      position: absolute;
+      bottom: 20px;
+      color: #aaa;
+      font-size: 1.1rem;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="display">
+    <div class="placeholder" id="placeholder">
+      Waiting for action…
+    </div>
+
+    <img id="img" />
+    <video id="vid" autoplay loop muted></video>
+
+    <div class="menu" id="menu"></div>
+  </div>
+
+  <script>
+    // Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+      authDomain: "smallo-live.firebaseapp.com",
+      databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "smallo-live",
+      storageBucket: "smallo-live.firebasestorage.app",
+      messagingSenderId: "1017470725882",
+      appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+      measurementId: "G-QTZTK6G2XL"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const actionRef = db.ref("action");
+
+    const video = document.getElementById("vid");
+    const img = document.getElementById("img");
+    const placeholder = document.getElementById("placeholder");
+    const menu = document.getElementById("menu");
+
+    actionRef.on("value", snap => {
+      const action = snap.val() || "idle";
+      menu.textContent = "🍫 Smallo is " + action;
+
+      const videoFile = action + ".mp4";
+      const imageFile = action + ".png";
+
+      // Reset
+      video.style.display = "none";
+      img.style.display = "none";
+      img.classList.remove("bounce");
+      placeholder.style.display = "none";
+
+      // Try video first
+      fetch(videoFile).then(res => {
+        if (res.ok) {
+          video.src = videoFile;
+          video.style.display = "block";
+          video.play();
+        } else {
+          // Try PNG
+          fetch(imageFile).then(imgRes => {
+            if (imgRes.ok) {
+              img.src = imageFile;
+              img.style.display = "block";
+              img.classList.add("bounce"); // ✅ PNG bounce ONLY
+            } else {
+              placeholder.style.display = "flex";
+            }
+          });
+        }
+      }).catch(() => {
+        placeholder.style.display = "flex";
+      });
+    });
+  </script>
+
+</body>
+</html>
     .menu {
       background: #FFA552;
       color: white;
