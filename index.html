@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smallo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body style="text-align:center; background:#FFF5E1;">
+
+  <video id="vid" width="300" autoplay loop muted></video>
+
+  <br><br>
+
+  <button onclick="play('idle.mp4')">Idle</button>
+  <button onclick="play('sleep.mp4')">Sleep</button>
+  <button onclick="play('smile.mp4')">Smile</button>
+  <button onclick="play('hello.mp4')">Hello</button>
+  <button onclick="play('thank.mp4')">Thank</button>
+
+  <script>
+    function play(file) {
+      const v = document.getElementById("vid");
+      v.src = file;
+      v.play();
+    }
+
+    play('idle.mp4');
+  </script>
+
+</body>
+</html>
