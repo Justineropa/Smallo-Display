@@ -65,6 +65,8 @@
     video {
       width: 80%;
       display: block;
+      opacity: 1;
+      transition: opacity 0.5s ease;
     }
 
     .controls {
@@ -81,7 +83,7 @@
 <div id="app"></div>
 
 <script>
-  // 🔥 Firebase config
+  // 🔥 YOUR FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
     authDomain: "smallo-live.firebaseapp.com",
@@ -99,7 +101,7 @@
   const mode = location.hash.replace("#", "");
   const app = document.getElementById("app");
 
-  /* ===== LANDING PAGE ===== */
+  /* ========= LANDING PAGE ========= */
   if (!mode) {
     app.innerHTML = `
       <div class="center">
@@ -110,12 +112,14 @@
     `;
   }
 
-  /* ===== DISPLAY PAGE ===== */
+  /* ========= DISPLAY PAGE ========= */
   if (mode === "display") {
     app.innerHTML = `
       <div class="menu" id="menu">🍫 Waiting for action…</div>
       <div class="display">
-        <div class="placeholder" id="placeholder">Waiting for animation…</div>
+        <div class="placeholder" id="placeholder">
+          Waiting for animation…
+        </div>
         <video id="vid" autoplay loop muted></video>
       </div>
     `;
@@ -124,35 +128,43 @@
     const video = document.getElementById("vid");
     const placeholder = document.getElementById("placeholder");
 
-    let currentAction = ""; // Track current action
+    let currentAction = null;
 
-    actionRef.on("value", snap => {
-      const action = snap.val() || "idle";
-      if (action === currentAction) return; // No change
+    function changeVideo(action) {
+      if (action === currentAction) return; // nothing to do
 
       const file = action + ".mp4";
-      menu.textContent = "🍫 Smallo is " + action;
+      const testVideo = document.createElement("video");
+      testVideo.src = file;
 
-      // Check if video exists without hiding current video
-      fetch(file).then(res => {
-        if (res.ok) {
-          // Only switch when file exists
-          video.src = file;
-          video.play();
-          placeholder.style.display = "none";
-          video.style.display = "block";
-          currentAction = action;
-        } else {
-          // Keep previous video, show placeholder
-          placeholder.style.display = "flex";
-        }
-      }).catch(() => {
+      // Wait until video is loaded metadata (exists)
+      testVideo.onloadeddata = () => {
+        currentAction = action;
+        menu.textContent = "🍫 Smallo is " + action;
+        video.src = file;
+        placeholder.style.display = "none";
+        video.style.opacity = 0;
+        video.play().then(() => {
+          video.style.opacity = 1; // smooth fade
+        });
+      };
+
+      // If video file does not exist
+      testVideo.onerror = () => {
+        video.style.display = "none";
         placeholder.style.display = "flex";
-      });
+        menu.textContent = "🍫 Smallo is " + action + " (file missing)";
+      };
+    }
+
+    // Listen to Firebase live updates
+    actionRef.on("value", snap => {
+      const action = snap.val() || "idle";
+      changeVideo(action);
     });
   }
 
-  /* ===== CONTROL PAGE ===== */
+  /* ========= CONTROL PAGE ========= */
   if (mode === "control") {
     app.innerHTML = `
       <div class="controls">
@@ -168,7 +180,7 @@
   function setAction(action) {
     actionRef.set(action);
   }
-</script>
 
+</script>
 </body>
 </html>
