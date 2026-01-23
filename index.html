@@ -64,7 +64,7 @@
 
     video {
       width: 80%;
-      display: none;
+      display: block;
     }
 
     .controls {
@@ -81,7 +81,7 @@
 <div id="app"></div>
 
 <script>
-  // 🔥 YOUR FIREBASE CONFIG
+  // 🔥 Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
     authDomain: "smallo-live.firebaseapp.com",
@@ -99,7 +99,7 @@
   const mode = location.hash.replace("#", "");
   const app = document.getElementById("app");
 
-  /* ========= LANDING UI ========= */
+  /* ===== LANDING PAGE ===== */
   if (!mode) {
     app.innerHTML = `
       <div class="center">
@@ -110,58 +110,49 @@
     `;
   }
 
-  /* ========= DISPLAY PAGE ========= */
+  /* ===== DISPLAY PAGE ===== */
   if (mode === "display") {
     app.innerHTML = `
       <div class="menu" id="menu">🍫 Waiting for action…</div>
-      <div class="display" id="displayContainer">
-        <div class="placeholder" id="placeholder">
-          Waiting for animation…
-        </div>
+      <div class="display">
+        <div class="placeholder" id="placeholder">Waiting for animation…</div>
+        <video id="vid" autoplay loop muted></video>
       </div>
     `;
 
     const menu = document.getElementById("menu");
+    const video = document.getElementById("vid");
     const placeholder = document.getElementById("placeholder");
-    const displayContainer = document.getElementById("displayContainer");
 
-    // Preload videos as hidden
-    const actions = ["idle", "sleep", "smile", "hello", "thank"];
-    const videos = {};
-    actions.forEach(a => {
-      const v = document.createElement("video");
-      v.src = a + ".mp4";
-      v.autoplay = true;
-      v.loop = true;
-      v.muted = true;
-      v.style.display = "none";
-      displayContainer.appendChild(v);
-      videos[a] = v;
-    });
-
-    function showAction(action) {
-      let anyVideoVisible = false;
-      actions.forEach(a => {
-        if (a === action && videos[a].readyState >= 2) {
-          videos[a].style.display = "block";
-          videos[a].play();
-          anyVideoVisible = true;
-        } else {
-          videos[a].style.display = "none";
-        }
-      });
-
-      placeholder.style.display = anyVideoVisible ? "none" : "flex";
-      menu.textContent = "🍫 Smallo is " + action;
-    }
+    let currentAction = ""; // Track current action
 
     actionRef.on("value", snap => {
       const action = snap.val() || "idle";
-      showAction(action);
+      if (action === currentAction) return; // No change
+
+      const file = action + ".mp4";
+      menu.textContent = "🍫 Smallo is " + action;
+
+      // Check if video exists without hiding current video
+      fetch(file).then(res => {
+        if (res.ok) {
+          // Only switch when file exists
+          video.src = file;
+          video.play();
+          placeholder.style.display = "none";
+          video.style.display = "block";
+          currentAction = action;
+        } else {
+          // Keep previous video, show placeholder
+          placeholder.style.display = "flex";
+        }
+      }).catch(() => {
+        placeholder.style.display = "flex";
+      });
     });
   }
 
-  /* ========= CONTROL PAGE ========= */
+  /* ===== CONTROL PAGE ===== */
   if (mode === "control") {
     app.innerHTML = `
       <div class="controls">
