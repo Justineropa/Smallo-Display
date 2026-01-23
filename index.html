@@ -81,7 +81,7 @@
 <div id="app"></div>
 
 <script>
-  // 🔥 YOUR FIREBASE CONFIG (AS PROVIDED)
+  // 🔥 YOUR FIREBASE CONFIG
   const firebaseConfig = {
     apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
     authDomain: "smallo-live.firebaseapp.com",
@@ -114,38 +114,50 @@
   if (mode === "display") {
     app.innerHTML = `
       <div class="menu" id="menu">🍫 Waiting for action…</div>
-      <div class="display">
+      <div class="display" id="displayContainer">
         <div class="placeholder" id="placeholder">
           Waiting for animation…
         </div>
-        <video id="vid" autoplay loop muted></video>
       </div>
     `;
 
     const menu = document.getElementById("menu");
-    const video = document.getElementById("vid");
     const placeholder = document.getElementById("placeholder");
+    const displayContainer = document.getElementById("displayContainer");
+
+    // Preload videos as hidden
+    const actions = ["idle", "sleep", "smile", "hello", "thank"];
+    const videos = {};
+    actions.forEach(a => {
+      const v = document.createElement("video");
+      v.src = a + ".mp4";
+      v.autoplay = true;
+      v.loop = true;
+      v.muted = true;
+      v.style.display = "none";
+      displayContainer.appendChild(v);
+      videos[a] = v;
+    });
+
+    function showAction(action) {
+      let anyVideoVisible = false;
+      actions.forEach(a => {
+        if (a === action && videos[a].readyState >= 2) {
+          videos[a].style.display = "block";
+          videos[a].play();
+          anyVideoVisible = true;
+        } else {
+          videos[a].style.display = "none";
+        }
+      });
+
+      placeholder.style.display = anyVideoVisible ? "none" : "flex";
+      menu.textContent = "🍫 Smallo is " + action;
+    }
 
     actionRef.on("value", snap => {
       const action = snap.val() || "idle";
-      menu.textContent = "🍫 Smallo is " + action;
-
-      const file = action + ".mp4";
-
-      fetch(file).then(res => {
-        if (res.ok) {
-          placeholder.style.display = "none";
-          video.style.display = "block";
-          video.src = file;
-          video.play();
-        } else {
-          video.style.display = "none";
-          placeholder.style.display = "flex";
-        }
-      }).catch(() => {
-        video.style.display = "none";
-        placeholder.style.display = "flex";
-      });
+      showAction(action);
     });
   }
 
