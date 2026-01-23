@@ -5,14 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <style>
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #FFF5E1;
+    }
+
+    .center {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      gap: 20px;
+    }
+
+    button {
+      padding: 16px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 14px;
+      background: #FFD166;
     }
 
     .menu {
@@ -23,84 +40,53 @@
       font-weight: bold;
     }
 
-    .container {
-      display: flex;
-      height: calc(100vh - 50px);
-    }
-
     .display {
-      flex: 2;
+      height: calc(100vh - 50px);
       display: flex;
       justify-content: center;
       align-items: center;
       flex-direction: column;
-    }
-
-    .controls {
-      flex: 1;
-      padding: 20px;
-      display: none;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    button {
-      padding: 14px;
-      font-size: 16px;
-      border: none;
-      border-radius: 12px;
-      background: #FFD166;
     }
 
     .placeholder {
       width: 220px;
       height: 220px;
       border-radius: 50%;
-      background: #FFFFFF;
+      background: white;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-weight: bold;
       color: #999;
-      text-align: center;
+      font-weight: bold;
     }
 
     video {
       width: 80%;
       display: none;
     }
+
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
   </style>
 </head>
+
 <body>
 
-  <!-- DISPLAY MENU -->
-  <div class="menu" id="menuText">
-    🍫 Smallo is idle
-  </div>
+<div id="app"></div>
 
-  <div class="container">
+<script>
+  // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-    <!-- DISPLAY AREA -->
-    <div class="display">
-      <div class="placeholder" id="placeholder">
-        Waiting for animation…
-      </div>
-      <video id="vid" autoplay loop muted></video>
-    </div>
-
-    <!-- CONTROL PANEL -->
-    <div class="controls" id="controls">
-      <button onclick="setState('idle')">Idle</button>
-      <button onclick="setState('sleep')">Sleep</button>
-      <button onclick="setState('smile')">Smile</button>
-      <button onclick="setState('hello')">Hello</button>
-      <button onclick="setState('thank')">Thank</button>
-    </div>
-
-  </div>
-
-  <script>
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   authDomain: "smallo-live.firebaseapp.com",
@@ -112,46 +98,84 @@ const firebaseConfig = {
   measurementId: "G-QTZTK6G2XL"
 };
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+  };
 
-    const controls = document.getElementById('controls');
-    const video = document.getElementById('vid');
-    const placeholder = document.getElementById('placeholder');
-    const menuText = document.getElementById('menuText');
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const actionRef = db.ref("action");
 
-    // Show controls if #control is in URL
-    if(location.hash === '#control') {
-      controls.style.display = 'flex';
-    }
+  const mode = location.hash.replace("#","");
 
-    // ===== FUNCTIONS =====
-    function setState(action) {
-      db.ref('smallo/action').set(action); // live update
-    }
+  const app = document.getElementById("app");
 
-    function updateVideo(action) {
-      menuText.textContent = `🍫 Smallo is ${action}`;
-      const file = `${action}.mp4`;
-      fetch(file).then(res => {
-        if(res.ok){
-          placeholder.style.display = 'none';
-          video.style.display = 'block';
+  /* LANDING PAGE */
+  if (!mode) {
+    app.innerHTML = `
+      <div class="center">
+        <h2>Smallo Booth</h2>
+        <button onclick="location.href='#display'">Open Display Page</button>
+        <button onclick="location.href='#control'">Open Control Page</button>
+      </div>
+    `;
+  }
+
+  /* DISPLAY PAGE */
+  if (mode === "display") {
+    app.innerHTML = `
+      <div class="menu" id="menu">🍫 Waiting...</div>
+      <div class="display">
+        <div class="placeholder" id="placeholder">Waiting for animation…</div>
+        <video id="vid" autoplay loop muted></video>
+      </div>
+    `;
+
+    const menu = document.getElementById("menu");
+    const video = document.getElementById("vid");
+    const placeholder = document.getElementById("placeholder");
+
+    actionRef.on("value", snap => {
+      const action = snap.val() || "idle";
+      menu.textContent = "🍫 Smallo is " + action;
+
+      const file = action + ".mp4";
+
+      fetch(file).then(r => {
+        if (r.ok) {
+          placeholder.style.display = "none";
+          video.style.display = "block";
           video.src = file;
           video.play();
         } else {
-          video.style.display = 'none';
-          placeholder.style.display = 'flex';
+          video.style.display = "none";
+          placeholder.style.display = "flex";
         }
+      }).catch(() => {
+        placeholder.style.display = "flex";
+        video.style.display = "none";
       });
-    }
-
-    // Listen for live updates from Firebase
-    db.ref('smallo/action').on('value', snapshot => {
-      const action = snapshot.val() || 'idle';
-      updateVideo(action);
     });
-  </script>
+  }
+
+  /* CONTROL PAGE */
+  if (mode === "control") {
+    app.innerHTML = `
+      <div class="controls">
+        <button onclick="setAction('idle')">Idle</button>
+        <button onclick="setAction('sleep')">Sleep</button>
+        <button onclick="setAction('smile')">Smile</button>
+        <button onclick="setAction('hello')">Hello</button>
+        <button onclick="setAction('thank')">Thank</button>
+      </div>
+    `;
+  }
+
+  function setAction(action) {
+    actionRef.set(action);
+  }
+</script>
 
 </body>
 </html>
