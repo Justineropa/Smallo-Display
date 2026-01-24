@@ -25,7 +25,7 @@
     }
 
     .display {
-      height: calc(100vh - 50px);
+      height: calc(100vh - 48px);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -34,7 +34,6 @@
     .stage {
       position: relative;
       width: 80%;
-      max-width: 900px;
       height: 60vh;
       background: #FFF5E1;
     }
@@ -45,16 +44,15 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      opacity: 1;
-      transition: opacity 0.4s ease;
     }
 
-    video.top {
+    video.overlay {
       z-index: 2;
       opacity: 0;
+      transition: opacity 0.35s ease;
     }
 
-    video.bottom {
+    video.base {
       z-index: 1;
     }
 
@@ -71,6 +69,15 @@
       border-radius: 10px;
       border: none;
       background: #FFD166;
+      cursor: pointer;
+    }
+
+    .disclaimer {
+      margin-top: 16px;
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+      line-height: 1.4;
     }
   </style>
 </head>
@@ -79,7 +86,7 @@
 <div id="app"></div>
 
 <script>
-/* ================= FIREBASE ================= */
+/* ========== FIREBASE ========== */
 firebase.initializeApp({
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -87,84 +94,90 @@ firebase.initializeApp({
 
 const db = firebase.database();
 const actionRef = db.ref("action");
-const lastActionRef = db.ref("lastActionTime");
 
-/* ================= ROUTING ================= */
-const mode = location.hash.replace("#","");
+/* ========== ROUTER ========== */
+const mode = location.hash.replace("#", "");
 const app = document.getElementById("app");
 
-/* ================= DISPLAY ================= */
+/* ========== DISPLAY PAGE ========== */
 if (mode === "display") {
   app.innerHTML = `
     <div class="menu" id="menu">🍫 Smallo is idle</div>
     <div class="display">
       <div class="stage">
-        <video id="bottom" class="bottom" muted autoplay loop playsinline></video>
-        <video id="top" class="top" muted playsinline></video>
+        <video id="base" class="base" autoplay muted loop playsinline></video>
+        <video id="overlay" class="overlay" muted playsinline></video>
       </div>
     </div>
   `;
 
-  const bottom = document.getElementById("bottom");
-  const top = document.getElementById("top");
+  const base = document.getElementById("base");
+  const overlay = document.getElementById("overlay");
   const menu = document.getElementById("menu");
 
   let current = "idle";
-  let sleepTimer = null;
-  let idleTimer = null;
+  let sleepTimer;
 
-  const SLEEP_AFTER = 15000; // 15s inactivity
-  const SLEEP_DURATION = 10000; // sleep before waking
+  const INACTIVITY_TIME = 15000; // ms
+  const SLEEP_TIME = 8000;       // ms
+
+  function isLoop(action) {
+    return action === "idle" || action === "sleep";
+  }
 
   function play(action) {
     if (action === current) return;
     current = action;
     menu.textContent = "🍫 Smallo is " + action;
 
-    top.src = action + ".mp4";
-    top.loop = (action === "idle" || action === "sleep");
-    top.load();
+    overlay.src = action + ".mp4";
+    overlay.loop = isLoop(action);
+    overlay.load();
 
-    top.onloadeddata = () => {
-      top.play();
+    overlay.onloadeddata = () => {
+      overlay.play();
 
-      top.requestVideoFrameCallback(() => {
-        top.style.opacity = 1;
+      overlay.requestVideoFrameCallback(() => {
+        overlay.style.opacity = 1;
 
+        // Promote overlay only AFTER visible
         setTimeout(() => {
-          bottom.src = top.src;
-          bottom.loop = top.loop;
-          bottom.play();
-          top.style.opacity = 0;
-        }, 400);
+          base.src = overlay.src;
+          base.loop = overlay.loop;
+          base.play();
+          overlay.style.opacity = 0;
+        }, 350);
       });
 
-      if (action !== "idle" && action !== "sleep") {
-        top.onended = () => play("idle");
+      if (!isLoop(action)) {
+        overlay.onended = () => play("idle");
       }
 
       if (action === "sleep") {
-        setTimeout(() => play("idle"), SLEEP_DURATION);
+        setTimeout(() => play("idle"), SLEEP_TIME);
       }
     };
   }
 
-  function resetSleepTimer() {
+  function resetInactivity() {
     clearTimeout(sleepTimer);
-    sleepTimer = setTimeout(() => play("sleep"), SLEEP_AFTER);
+    sleepTimer = setTimeout(() => play("sleep"), INACTIVITY_TIME);
   }
 
   actionRef.on("value", snap => {
     const action = snap.val() || "idle";
     play(action);
-    resetSleepTimer();
+    resetInactivity();
   });
 
-  play("idle");
-  resetSleepTimer();
+  // Initial state
+  base.src = "idle.mp4";
+  base.loop = true;
+  base.play();
+  resetInactivity();
 }
 
-/* ================= CONTROL ================= */
+/* ========== CONTROL PAGE ========== */
 if (mode === "control") {
   app.innerHTML = `
     <div class="controls">
@@ -173,13 +186,17 @@ if (mode === "control") {
       <button onclick="send('smile')">Smile</button>
       <button onclick="send('hello')">Hello</button>
       <button onclick="send('thank')">Thank</button>
+
+      <div class="disclaimer">
+        This control panel is for booth staff only.<br>
+        Actions trigger live animations on the Smallo display.
+      </div>
     </div>
   `;
 }
 
 function send(action) {
   actionRef.set(action);
-  lastActionRef.set(Date.now());
 }
 </script>
 </body>
