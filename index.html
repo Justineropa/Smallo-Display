@@ -1,18 +1,21 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
   <title>Smallo Booth</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK (v8 as in your original file) -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <style>
+    :root { --bg:#FFF5E1; --accent:#FFD166; --accent-2:#FFA552; }
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #FFF5E1;
+      background: var(--bg);
+      color: #222;
     }
 
     .center {
@@ -26,14 +29,366 @@
     }
 
     button {
-      padding: 18px 36px;
-      font-size: 18px;
-      border-radius: 14px;
+      padding: 14px 28px;
+      font-size: 16px;
+      border-radius: 12px;
       border: none;
-      background: #FFD166;
+      background: var(--accent);
       cursor: pointer;
     }
 
+    .menu {
+      background: var(--accent-2);
+      color: white;
+      padding: 12px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .display {
+      position: relative;
+      height: calc(100vh - 50px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .placeholder {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #999;
+      font-weight: bold;
+      z-index: 1;
+    }
+
+    /* Double-buffer videos */
+    .video-wrap {
+      position: relative;
+      width: 80%;
+      max-width: 900px;
+      height: 60vh;
+      max-height: 720px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .video-wrap video {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 0.45s ease;
+      pointer-events: none;
+    }
+
+    .video-wrap video.active {
+      opacity: 1;
+    }
+
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 420px;
+      margin: 12px auto;
+    }
+
+    .btn-row {
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .status {
+      background:#fff;
+      padding:8px 12px;
+      border-radius:10px;
+      display:inline-block;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      font-weight:600;
+    }
+
+    .small {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .muted {
+      opacity: 0.7;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+
+<script>
+  // ---------- FIREBASE CONFIG ----------
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+    authDomain: "smallo-live.firebaseapp.com",
+    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "smallo-live",
+    storageBucket: "smallo-live.firebasestorage.app",
+    messagingSenderId: "1017470725882",
+    appId: "1:1017470725882:web:929ee126247fcbb51e6343"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  // paths:
+  const queueRef = db.ref("queue");         // <--- actions pushed here (child nodes)
+  const nowPlayingRef = db.ref("nowPlaying"); // display writes current playing action
+  const lastRequestedRef = db.ref("lastRequested"); // optional: last request (compat)
+
+  // ---------- ROUTING ----------
+  const mode = location.hash.replace("#", "");
+  const app = document.getElementById("app");
+
+  /* ========= LANDING PAGE ========= */
+  if (!mode) {
+    app.innerHTML = `
+      <div class="center">
+        <h2>Smallo Booth</h2>
+        <button onclick="location.href='#display'">Open Display Page</button>
+        <button onclick="location.href='#control'">Open Control Page</button>
+      </div>
+    `;
+  }
+
+  /* ========= DISPLAY PAGE ========= */
+  if (mode === "display") {
+    app.innerHTML = `
+      <div class="menu" id="menu">🍫 Waiting for action…</div>
+      <div class="display">
+        <div class="video-wrap" id="videoWrap">
+          <video id="vidA" muted playsinline></video>
+          <video id="vidB" muted playsinline></video>
+        </div>
+        <div class="placeholder" id="placeholder">Waiting for animation…</div>
+        <div class="small muted">Listening for queue... (uses Firebase)</div>
+      </div>
+    `;
+
+    // elements
+    const menu = document.getElementById("menu");
+    const placeholder = document.getElementById("placeholder");
+    const vidA = document.getElementById("vidA");
+    const vidB = document.getElementById("vidB");
+
+    // video roles
+    let activeVid = vidA;
+    let inactiveVid = vidB;
+    let currentAction = "idle";
+    let processing = false;
+    const localQueue = []; // { key, action }
+
+    // helper: map actions that should loop
+    function shouldLoop(action) {
+      return action === "idle"; // idle loops; others play once
+    }
+
+    // swap active/inactive classes & elements
+    function crossfadeToVideoElement(elIn, elOut, action) {
+      // elIn is the element that was prepared and is ready to show
+      elIn.classList.add("active");
+      elOut.classList.remove("active");
+
+      // hide placeholder once first video becomes active
+      placeholder.style.display = "none";
+      menu.textContent = "🍫 Smallo is " + action;
+    }
+
+    // Start processing queue if not busy
+    function processQueue() {
+      if (processing) return;
+      const item = localQueue.shift();
+      if (!item) {
+        // nothing to do — ensure we show idle if not already
+        if (currentAction !== "idle") {
+          loadActionLocally("idle");
+        }
+        return;
+      }
+
+      processing = true;
+      const { key, action } = item;
+
+      // Prepare inactiveVid
+      inactiveVid.pause();
+      inactiveVid.removeAttribute("src");
+      inactiveVid.src = action + ".mp4"; // your files: idle.mp4, smile.mp4, etc.
+      inactiveVid.load();
+      inactiveVid.loop = shouldLoop(action);
+      inactiveVid.onloadeddata = () => {
+        // indicate to control page / staff that we started playing this item
+        nowPlayingRef.set(action).catch(()=>{});
+        lastRequestedRef.set(action).catch(()=>{}); // optional compatibility
+
+        // remove the item from Firebase queue (we're handling it)
+        if (key) queueRef.child(key).remove().catch(()=>{});
+
+        // reset time and play
+        try { inactiveVid.currentTime = 0; } catch(e){/* ignore */ }
+        inactiveVid.play().catch(()=>{ /* autoplay policies — muted ensured */ });
+
+        // crossfade
+        crossfadeToVideoElement(inactiveVid, activeVid, action);
+
+        // swap references
+        const prevActive = activeVid;
+        activeVid = inactiveVid;
+        inactiveVid = prevActive;
+
+        currentAction = action;
+
+        // When a non-looping action ends, continue to next queued item (or idle)
+        if (!shouldLoop(action)) {
+          // Ensure we handle end event only for the activeVid we just swapped
+          activeVid.onended = () => {
+            activeVid.onended = null; // clear handler
+            processing = false;
+            // when finished, continue processing (next queued action or idle)
+            processQueue();
+          };
+        } else {
+          // For looping idle, just mark processing done and wait for new queue items
+          activeVid.onended = null;
+          processing = false;
+          // keep playing idle until new queue arrives
+        }
+      };
+
+      inactiveVid.onerror = () => {
+        console.warn("Video file missing or failed to load:", action + ".mp4");
+        // gracefully skip this item
+        if (key) queueRef.child(key).remove().catch(()=>{});
+        processing = false;
+        processQueue();
+      };
+    }
+
+    // local helper to load an action directly (used to force idle locally)
+    function loadActionLocally(action) {
+      // push a synthetic item (no firebase key) into local queue
+      localQueue.push({ key: null, action });
+      processQueue();
+    }
+
+    // Listen for new items in Firebase queue (child_added)
+    queueRef.on("child_added", snap => {
+      const action = (snap.val() && snap.val().action) || snap.val();
+      const key = snap.key;
+      // push to local queue and process
+      localQueue.push({ key, action });
+      processQueue();
+    });
+
+    // Also respond to a direct "nowPlaying" override (optional)
+    nowPlayingRef.on("value", snap => {
+      const val = snap.val();
+      if (!val) return;
+      // show on menu (but do NOT interrupt queue)
+      menu.textContent = "🍫 Smallo is " + val;
+    });
+
+    // initial load: show idle video immediately (if available)
+    loadActionLocally("idle");
+  }
+
+  /* ========= CONTROL PAGE ========= */
+  if (mode === "control") {
+    app.innerHTML = `
+      <div class="controls">
+        <div>
+          <span class="status" id="status">Current: idle</span>
+          <span class="small muted" style="margin-left:10px">Tap an action to queue it</span>
+        </div>
+
+        <div class="btn-row">
+          <button onclick="pushAction('idle')">Idle</button>
+          <button onclick="pushAction('sleep')">Sleep</button>
+          <button onclick="pushAction('smile')">Smile</button>
+          <button onclick="pushAction('hello')">Hello</button>
+          <button onclick="pushAction('thank')">Thank</button>
+        </div>
+
+        <div class="small muted">Actions are queued and displayed one-by-one. Non-idle actions auto-reset to idle after 10s.</div>
+      </div>
+    `;
+
+    const statusEl = document.getElementById("status");
+
+    // show what's currently playing (written by display)
+    nowPlayingRef.on("value", snap => {
+      const val = snap.val() || "idle";
+      statusEl.textContent = "Current: " + val;
+    });
+
+    // Anti-spam lock (prevent pushing many requests in <500ms)
+    let lastPush = 0;
+
+    // pushAction: pushes an item into /queue
+    function pushAction(action) {
+      const now = Date.now();
+      if (now - lastPush < 400) return; // very short anti-spam
+      lastPush = now;
+
+      // create a timestamped push in queue
+      const node = queueRef.push();
+      node.set({
+        action,
+        ts: firebase.database.ServerValue.TIMESTAMP
+      }).catch(err => console.warn("Queue push failed:", err));
+
+      // set a compatibility pointer to latest requested action
+      lastRequestedRef.set(action).catch(()=>{});
+
+      // If action is not idle, auto-enqueue an idle action after 10s
+      if (action !== "idle") {
+        setTimeout(() => {
+          // Push an idle request to the queue — only if no newer action was requested in the meantime
+          // We check lastRequestedRef to avoid pushing idle if a newer request came after this one.
+          lastRequestedRef.once("value").then(snap => {
+            const last = snap.val();
+            // If the last requested action is still this action (or null), push idle.
+            // If someone else already requested something else, skip pushing idle.
+            if (!last || last === action) {
+              const idleNode = queueRef.push();
+              idleNode.set({
+                action: "idle",
+                ts: firebase.database.ServerValue.TIMESTAMP
+              }).catch(()=>{});
+              lastRequestedRef.set("idle").catch(()=>{});
+            }
+          }).catch(()=>{ /* ignore */});
+        }, 10000); // 10 seconds
+      }
+    }
+
+    // expose pushAction globally so inline onclick works
+    window.pushAction = pushAction;
+  }
+
+  // For convenience: expose queueRef and nowPlayingRef on window for debugging in dev console
+  window.__queueRef = queueRef;
+  window.__nowPlayingRef = nowPlayingRef;
+</script>
+</body>
+</html>
     .menu {
       background: #FFA552;
       color: white;
