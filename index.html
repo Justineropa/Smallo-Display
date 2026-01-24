@@ -1,312 +1,201 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
-  <title>Smallo Booth</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<title>Smallo Booth</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-  <style>
-    :root { --bg: #FFF5E1; --accent: #FFA552; --button: #FFD166; --muted: #666; }
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: #222;
-    }
+<style>
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #FFF5E1;
+}
 
-    .menu {
-      background: var(--accent);
-      color: white;
-      padding: 12px;
-      font-weight: bold;
-      text-align: center;
-    }
+.menu {
+  background: #FFA552;
+  color: white;
+  padding: 12px;
+  font-weight: bold;
+  text-align: center;
+}
 
-    .display {
-      height: calc(100vh - 48px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+.stage {
+  position: relative;
+  width: 80%;
+  height: 60vh;
+  margin: auto;
+}
 
-    .stage {
-      position: relative;
-      width: 80%;
-      height: 60vh;
-      background: var(--bg);
-      overflow: hidden;
-    }
+video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
 
-    video {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      opacity: 0;
-      /* transition duration will be set dynamically via JS (FADE_MS) */
-    }
+.controls {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-    video.active {
-      opacity: 1;
-      z-index: 2;
-    }
+button {
+  padding: 14px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: none;
+  background: #FFD166;
+  cursor: pointer;
+}
 
-    video.inactive {
-      z-index: 1;
-    }
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
-    .controls {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-width: 420px;
-      margin: 0 auto;
-    }
-
-    button {
-      padding: 14px;
-      font-size: 16px;
-      border-radius: 10px;
-      border: none;
-      background: var(--button);
-      cursor: pointer;
-    }
-
-    .disclaimer {
-      margin-top: 16px;
-      font-size: 13px;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.4;
-    }
-  </style>
+.status {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+}
+</style>
 </head>
 
 <body>
 <div id="app"></div>
 
 <script>
-/* ========== CONFIG ========== */
-const FADE_MS = 0;            // set to 0 for instant promotion (no fade). Try 150 or 250 for a short crossfade.
-const INACTIVITY_TIME = 15000; // ms until sleep
-const SLEEP_TIME = 8000;       // ms sleep duration before waking
-const AUTO_RETURN_TO_IDLE_FOR_NONLOOP = true; // non-loop actions auto-return to idle when ended
-
-/* ========== FIREBASE ========== */
 firebase.initializeApp({
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
+
 const db = firebase.database();
 const actionRef = db.ref("action");
 
-/* ========== ROUTER ========== */
 const mode = location.hash.replace("#", "");
 const app = document.getElementById("app");
 
-/* ========== DISPLAY PAGE ========== */
+/* ================= DISPLAY ================= */
 if (mode === "display") {
   app.innerHTML = `
-    <div class="menu" id="menu">🍫 Smallo is idle</div>
-    <div class="display">
-      <div class="stage" id="stage">
-        <video id="vA" class="active" autoplay muted loop playsinline></video>
-        <video id="vB" class="inactive" muted playsinline></video>
-      </div>
+    <div class="menu" id="menu">🍫 Idle</div>
+    <div class="stage">
+      <video id="idle" autoplay muted loop playsinline></video>
+      <video id="action" muted playsinline></video>
     </div>
   `;
 
-  const menu = document.getElementById('menu');
-  const vA = document.getElementById('vA');
-  const vB = document.getElementById('vB');
+  const idle = document.getElementById("idle");
+  const action = document.getElementById("action");
+  const menu = document.getElementById("menu");
 
-  // Apply fade duration dynamically (so it's easy to change)
-  [vA, vB].forEach(v => {
-    v.style.transition = `opacity ${FADE_MS}ms ease`;
+  idle.src = "idle.mp4";
+  idle.play();
+
+  let queuedAction = null;
+  let busy = false;
+
+  const randomActions = [
+    "smile", "happy", "confused",
+    "surprised", "look", "sigh"
+  ];
+
+  function maybeRandom() {
+    if (busy) return;
+    if (Math.random() < 0.25) {
+      queuedAction = randomActions[
+        Math.floor(Math.random() * randomActions.length)
+      ];
+    }
+  }
+
+  idle.addEventListener("timeupdate", () => {
+    if (!queuedAction || busy) return;
+
+    if (idle.duration - idle.currentTime < 0.08) {
+      playAction(queuedAction);
+      queuedAction = null;
+    }
   });
 
-  // activeVideo is the one currently visible (starts with vA)
-  let activeVideo = vA;
-  let inactiveVideo = vB;
-  let currentAction = "idle";
-  let inactivityTimer = null;
+  function playAction(name) {
+    busy = true;
+    menu.textContent = "🍫 Playing: " + name;
 
-  function isLooping(action) {
-    return action === "idle" || action === "sleep";
+    action.src = name + ".mp4";
+    action.load();
+
+    action.onloadeddata = () => {
+      action.currentTime = 0;
+      action.play();
+
+      idle.pause();
+      idle.currentTime = 0;
+    };
+
+    action.onended = () => {
+      action.src = "";
+      idle.play();
+      menu.textContent = "🍫 Idle";
+      busy = false;
+      maybeRandom();
+    };
   }
 
-  // Utility: prepare inactive video for an action and promote it once painted
-  function prepareAndPromote(action) {
-    if (action === currentAction) return Promise.resolve(); // nothing to do
-
-    return new Promise((resolve, reject) => {
-      inactiveVideo.pause();
-      // clear old source to ensure a fresh load (helps some Android decoders)
-      try { inactiveVideo.removeAttribute('src'); } catch(e){}
-      inactiveVideo.src = action + '.mp4';
-      inactiveVideo.loop = !!isLooping(action);
-      inactiveVideo.load();
-
-      // timeout fallback if onloadeddata never fires
-      const timeout = setTimeout(() => {
-        console.warn('Video load timeout for', action);
-        reject(new Error('load-timeout'));
-      }, 6000);
-
-      inactiveVideo.onloadeddata = () => {
-        clearTimeout(timeout);
-
-        // Try to play (muted should allow autoplay)
-        inactiveVideo.play().catch((e)=>{
-          // Still proceed — we'll try to promote when a frame is available
-          console.warn('play failed (may be autoplay policy):', e);
-        });
-
-        // Wait until a real frame is rendered
-        if (typeof inactiveVideo.requestVideoFrameCallback === 'function') {
-          inactiveVideo.requestVideoFrameCallback(() => {
-            promotePrepared(action);
-            resolve();
-          });
-        } else {
-          // Fallback: wait for a small tick after loadeddata and then promote
-          setTimeout(() => {
-            promotePrepared(action);
-            resolve();
-          }, 120);
-        }
-      };
-
-      inactiveVideo.onerror = (e) => {
-        clearTimeout(timeout);
-        console.warn('Video error loading', action, e);
-        reject(new Error('video-error'));
-      };
-    });
-  }
-
-  // Promotion: make inactive the visible element, pause+clear the previous active
-  function promotePrepared(action) {
-    // make inactive visible (instant if FADE_MS=0)
-    inactiveVideo.classList.add('active');
-    inactiveVideo.classList.remove('inactive');
-
-    // hide current active
-    activeVideo.classList.remove('active');
-    activeVideo.classList.add('inactive');
-
-    // swap references: now inactive becomes the new activeVideo
-    const oldActive = activeVideo;
-    activeVideo = inactiveVideo;
-    inactiveVideo = oldActive;
-
-    // update trackers
-    currentAction = action;
-    menu.textContent = '🍫 Smallo is ' + action;
-
-    // For non-looping actions, attach ended handler to return to idle
-    if (!isLooping(action) && AUTO_RETURN_TO_IDLE_FOR_NONLOOP) {
-      activeVideo.onended = () => {
-        activeVideo.onended = null;
-        setTimeout(()=> playAction('idle'), 0);
-      };
-    } else {
-      activeVideo.onended = null;
-    }
-
-    // Small delay then pause & clear the now-inactive element's src to free resources
-    setTimeout(() => {
-      try {
-        inactiveVideo.pause();
-        inactiveVideo.removeAttribute('src');
-        // calling load after removing src avoids showing previous frames on some browsers
-        inactiveVideo.load();
-      } catch (e) { /* ignore */ }
-    }, Math.max(200, FADE_MS + 50));
-  }
-
-  // Public function to play an action (prepares & promotes)
-  function playAction(action) {
-    // reset inactivity timer whenever an explicit action arrives
-    resetInactivityTimer();
-
-    // ensure base idle exists initially
-    if (!activeVideo.src) {
-      activeVideo.src = 'idle.mp4';
-      activeVideo.loop = true;
-      activeVideo.load();
-      activeVideo.play().catch(()=>{});
-    }
-
-    prepareAndPromote(action).catch(() => {
-      // fallback: if prepare fails, try to immediately set active to idle (safe default)
-      if (action !== 'idle') {
-        console.warn('prepare failed, falling back to idle');
-        prepareAndPromote('idle').catch(()=>{/* ignore */});
-      }
-    });
-  }
-
-  // Inactivity -> sleep -> wake -> idle
-  function resetInactivityTimer() {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-      // go to sleep
-      playAction('sleep');
-      // after sleep duration, wake to idle
-      setTimeout(() => playAction('idle'), SLEEP_TIME);
-    }, INACTIVITY_TIME);
-  }
-
-  // Firebase listener
-  actionRef.on('value', snap => {
-    const action = (snap.val() || 'idle').toString();
-    playAction(action);
+  actionRef.on("value", snap => {
+    const val = snap.val();
+    if (!val) return;
+    queuedAction = val;
+    menu.textContent = "🍫 Queued: " + val;
   });
-
-  // Start with idle loaded on activeVideo
-  activeVideo.src = 'idle.mp4';
-  activeVideo.loop = true;
-  activeVideo.load();
-  activeVideo.play().catch(()=>{});
-  activeVideo.classList.add('active');
-  inactiveVideo.classList.add('inactive');
-
-  resetInactivityTimer();
-
-  // Expose for debugging in console if needed
-  window.__smallo_active = () => ({ currentAction, activeVideo, inactiveVideo });
 }
 
-/* ========== CONTROL PAGE ========== */
-if (mode === 'control') {
+/* ================= CONTROL ================= */
+if (mode === "control") {
   app.innerHTML = `
     <div class="controls">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-        <button onclick="send('idle')">Idle</button>
-        <button onclick="send('sleep')">Sleep</button>
-        <button onclick="send('smile')">Smile</button>
-        <button onclick="send('hello')">Hello</button>
-        <button onclick="send('thank')">Thank</button>
-      </div>
-      <div class="disclaimer">
-        Si Rovic po nag code nito<br>
-        Samlo Menu Character Dispaly.
-      </div>
+      <button onclick="send('hello')">Hello</button>
+      <button onclick="send('thank')">Thank</button>
+
+      <hr>
+
+      <button onclick="send('smile')">Smile</button>
+      <button onclick="send('happy')">Happy</button>
+      <button onclick="send('confused')">Confused</button>
+      <button onclick="send('surprised')">Surprised</button>
+      <button onclick="send('look')">Look Around</button>
+      <button onclick="send('sigh')">Sigh</button>
+
+      <div class="status" id="status">Idle</div>
     </div>
   `;
-}
 
-function send(action) {
-  actionRef.set(action);
+  const status = document.getElementById("status");
+  const buttons = document.querySelectorAll("button");
+
+  function lock(state) {
+    buttons.forEach(b => b.disabled = state);
+  }
+
+  window.send = action => {
+    status.textContent = "Queued: " + action;
+    lock(true);
+    actionRef.set(action);
+
+    setTimeout(() => {
+      lock(false);
+      status.textContent = "Idle";
+    }, 2500);
+  };
 }
 </script>
 </body>
 </html>
- 
