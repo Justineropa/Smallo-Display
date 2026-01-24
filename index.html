@@ -1,39 +1,189 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
+  <meta charset="utf-8">
   <title>Smallo Booth</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- Firebase SDK (v8 as in your original file) -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <style>
-    :root { --bg:#FFF5E1; --accent:#FFD166; --accent-2:#FFA552; }
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: var(--bg);
-      color: #222;
+      background: #FFF5E1;
     }
 
-    .center {
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
+    .menu {
+      background: #FFA552;
+      color: white;
+      padding: 12px;
+      font-weight: bold;
       text-align: center;
     }
 
+    .display {
+      height: calc(100vh - 50px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .stage {
+      position: relative;
+      width: 80%;
+      max-width: 900px;
+      height: 60vh;
+      background: #FFF5E1;
+    }
+
+    video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 1;
+      transition: opacity 0.4s ease;
+    }
+
+    video.top {
+      z-index: 2;
+      opacity: 0;
+    }
+
+    video.bottom {
+      z-index: 1;
+    }
+
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
     button {
-      padding: 14px 28px;
+      padding: 14px;
       font-size: 16px;
-      border-radius: 12px;
+      border-radius: 10px;
       border: none;
-      background: var(--accent);
+      background: #FFD166;
+    }
+  </style>
+</head>
+
+<body>
+<div id="app"></div>
+
+<script>
+/* ================= FIREBASE ================= */
+firebase.initializeApp({
+  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
+
+const db = firebase.database();
+const actionRef = db.ref("action");
+const lastActionRef = db.ref("lastActionTime");
+
+/* ================= ROUTING ================= */
+const mode = location.hash.replace("#","");
+const app = document.getElementById("app");
+
+/* ================= DISPLAY ================= */
+if (mode === "display") {
+  app.innerHTML = `
+    <div class="menu" id="menu">🍫 Smallo is idle</div>
+    <div class="display">
+      <div class="stage">
+        <video id="bottom" class="bottom" muted autoplay loop playsinline></video>
+        <video id="top" class="top" muted playsinline></video>
+      </div>
+    </div>
+  `;
+
+  const bottom = document.getElementById("bottom");
+  const top = document.getElementById("top");
+  const menu = document.getElementById("menu");
+
+  let current = "idle";
+  let sleepTimer = null;
+  let idleTimer = null;
+
+  const SLEEP_AFTER = 15000; // 15s inactivity
+  const SLEEP_DURATION = 10000; // sleep before waking
+
+  function play(action) {
+    if (action === current) return;
+    current = action;
+    menu.textContent = "🍫 Smallo is " + action;
+
+    top.src = action + ".mp4";
+    top.loop = (action === "idle" || action === "sleep");
+    top.load();
+
+    top.onloadeddata = () => {
+      top.play();
+
+      top.requestVideoFrameCallback(() => {
+        top.style.opacity = 1;
+
+        setTimeout(() => {
+          bottom.src = top.src;
+          bottom.loop = top.loop;
+          bottom.play();
+          top.style.opacity = 0;
+        }, 400);
+      });
+
+      if (action !== "idle" && action !== "sleep") {
+        top.onended = () => play("idle");
+      }
+
+      if (action === "sleep") {
+        setTimeout(() => play("idle"), SLEEP_DURATION);
+      }
+    };
+  }
+
+  function resetSleepTimer() {
+    clearTimeout(sleepTimer);
+    sleepTimer = setTimeout(() => play("sleep"), SLEEP_AFTER);
+  }
+
+  actionRef.on("value", snap => {
+    const action = snap.val() || "idle";
+    play(action);
+    resetSleepTimer();
+  });
+
+  play("idle");
+  resetSleepTimer();
+}
+
+/* ================= CONTROL ================= */
+if (mode === "control") {
+  app.innerHTML = `
+    <div class="controls">
+      <button onclick="send('idle')">Idle</button>
+      <button onclick="send('sleep')">Sleep</button>
+      <button onclick="send('smile')">Smile</button>
+      <button onclick="send('hello')">Hello</button>
+      <button onclick="send('thank')">Thank</button>
+    </div>
+  `;
+}
+
+function send(action) {
+  actionRef.set(action);
+  lastActionRef.set(Date.now());
+}
+</script>
+</body>
+</html>
       cursor: pointer;
     }
 
