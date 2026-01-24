@@ -15,6 +15,7 @@ body {
   background: #FFF5E1;
 }
 
+/* ===== DISPLAY ===== */
 .menu {
   background: #FFA552;
   color: white;
@@ -38,17 +39,31 @@ video {
   object-fit: contain;
 }
 
+/* ===== CONTROL ===== */
 .controls {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  padding: 16px;
+}
+
+.section {
+  margin-bottom: 18px;
+}
+
+.section h3 {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #555;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 button {
-  padding: 14px;
-  font-size: 16px;
-  border-radius: 10px;
+  aspect-ratio: 1 / 1;
+  font-size: 14px;
+  border-radius: 14px;
   border: none;
   background: #FFD166;
   cursor: pointer;
@@ -60,10 +75,10 @@ button:disabled {
 }
 
 .status {
-  margin-top: 10px;
-  font-size: 14px;
-  color: #555;
+  margin-top: 12px;
   text-align: center;
+  font-size: 14px;
+  color: #666;
 }
 </style>
 </head>
@@ -88,7 +103,7 @@ if (mode === "display") {
   app.innerHTML = `
     <div class="menu" id="menu">🍫 Idle</div>
     <div class="stage">
-      <video id="idle" autoplay muted loop playsinline></video>
+      <video id="idle" muted playsinline></video>
       <video id="action" muted playsinline></video>
     </div>
   `;
@@ -109,7 +124,6 @@ if (mode === "display") {
   ];
 
   function maybeRandom() {
-    if (busy) return;
     if (Math.random() < 0.25) {
       queuedAction = randomActions[
         Math.floor(Math.random() * randomActions.length)
@@ -117,14 +131,21 @@ if (mode === "display") {
     }
   }
 
-  idle.addEventListener("timeupdate", () => {
-    if (!queuedAction || busy) return;
-
-    if (idle.duration - idle.currentTime < 0.08) {
+  idle.onended = () => {
+    if (queuedAction && !busy) {
       playAction(queuedAction);
       queuedAction = null;
+    } else {
+      maybeRandom();
+      if (queuedAction) {
+        playAction(queuedAction);
+        queuedAction = null;
+      } else {
+        idle.currentTime = 0;
+        idle.play();
+      }
     }
-  });
+  };
 
   function playAction(name) {
     busy = true;
@@ -134,19 +155,17 @@ if (mode === "display") {
     action.load();
 
     action.onloadeddata = () => {
-      action.currentTime = 0;
-      action.play();
-
       idle.pause();
       idle.currentTime = 0;
+      action.play();
     };
 
     action.onended = () => {
       action.src = "";
-      idle.play();
-      menu.textContent = "🍫 Idle";
       busy = false;
-      maybeRandom();
+      menu.textContent = "🍫 Idle";
+      idle.currentTime = 0;
+      idle.play();
     };
   }
 
@@ -162,17 +181,25 @@ if (mode === "display") {
 if (mode === "control") {
   app.innerHTML = `
     <div class="controls">
-      <button onclick="send('hello')">Hello</button>
-      <button onclick="send('thank')">Thank</button>
+      <div class="section">
+        <h3>Special Actions</h3>
+        <div class="grid">
+          <button onclick="send('hello')">Hello</button>
+          <button onclick="send('thank')">Thank</button>
+        </div>
+      </div>
 
-      <hr>
-
-      <button onclick="send('smile')">Smile</button>
-      <button onclick="send('happy')">Happy</button>
-      <button onclick="send('confused')">Confused</button>
-      <button onclick="send('surprised')">Surprised</button>
-      <button onclick="send('look')">Look Around</button>
-      <button onclick="send('sigh')">Sigh</button>
+      <div class="section">
+        <h3>Random Actions</h3>
+        <div class="grid">
+          <button onclick="send('smile')">Smile</button>
+          <button onclick="send('happy')">Happy</button>
+          <button onclick="send('confused')">Confused</button>
+          <button onclick="send('surprised')">Surprised</button>
+          <button onclick="send('look')">Look</button>
+          <button onclick="send('sigh')">Sigh</button>
+        </div>
+      </div>
 
       <div class="status" id="status">Idle</div>
     </div>
@@ -181,19 +208,15 @@ if (mode === "control") {
   const status = document.getElementById("status");
   const buttons = document.querySelectorAll("button");
 
-  function lock(state) {
-    buttons.forEach(b => b.disabled = state);
-  }
-
   window.send = action => {
     status.textContent = "Queued: " + action;
-    lock(true);
+    buttons.forEach(b => b.disabled = true);
     actionRef.set(action);
 
     setTimeout(() => {
-      lock(false);
+      buttons.forEach(b => b.disabled = false);
       status.textContent = "Idle";
-    }, 2500);
+    }, 2000);
   };
 }
 </script>
