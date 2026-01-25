@@ -45,7 +45,7 @@ video {
 }
 
 .section {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .section h3 {
@@ -87,6 +87,7 @@ button:disabled {
 <div id="app"></div>
 
 <script>
+/* ================= FIREBASE ================= */
 firebase.initializeApp({
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app"
@@ -95,8 +96,16 @@ firebase.initializeApp({
 const db = firebase.database();
 const actionRef = db.ref("action");
 
+/* ================= ROUTER ================= */
 const mode = location.hash.replace("#", "");
 const app = document.getElementById("app");
+
+/* ================= PATHS ================= */
+const PATHS = {
+  idle: "idle/",
+  random: "random-actions/",
+  special: "special-actions/"
+};
 
 /* ================= DISPLAY ================= */
 if (mode === "display") {
@@ -112,67 +121,95 @@ if (mode === "display") {
   const action = document.getElementById("action");
   const menu = document.getElementById("menu");
 
-  idle.src = "idle.mp4";
+  idle.src = PATHS.idle + "idle.mp4";
   idle.play();
 
   let queuedAction = null;
   let busy = false;
 
   const randomActions = [
-    "smile", "happy", "confused",
-    "surprised", "look", "sigh"
+    "smile",
+    "happy",
+    "confused",
+    "surprised",
+    "look",
+    "sigh"
   ];
 
-  function maybeRandom() {
-    if (Math.random() < 0.25) {
-      queuedAction = randomActions[
-        Math.floor(Math.random() * randomActions.length)
-      ];
-    }
+  function weightedRandom() {
+    const roll = Math.random();
+    if (roll < 0.5) return "blink";        // higher chance
+    return randomActions[Math.floor(Math.random() * randomActions.length)];
   }
 
   idle.onended = () => {
     if (queuedAction && !busy) {
-      playAction(queuedAction);
+      playAction(queuedAction.name, queuedAction.type);
       queuedAction = null;
-    } else {
-      maybeRandom();
-      if (queuedAction) {
-        playAction(queuedAction);
-        queuedAction = null;
-      } else {
-        idle.currentTime = 0;
-        idle.play();
-      }
+      return;
     }
+
+    // LOWER overall random chance
+    if (Math.random() < 0.12 && !busy) {
+      playAction(weightedRandom(), "random");
+      return;
+    }
+
+    idle.currentTime = 0;
+    idle.play();
   };
 
-  function playAction(name) {
+  function playAction(name, type) {
     busy = true;
     menu.textContent = "🍫 Playing: " + name;
 
-    action.src = name + ".mp4";
-    action.load();
+    const folder =
+      type === "special"
+        ? PATHS.special
+        : (name === "blink" ? PATHS.idle : PATHS.random);
 
-    action.onloadeddata = () => {
-      idle.pause();
-      idle.currentTime = 0;
-      action.play();
-    };
+    const src = folder + name + ".mp4";
 
-    action.onended = () => {
-      action.src = "";
-      busy = false;
-      menu.textContent = "🍫 Idle";
-      idle.currentTime = 0;
-      idle.play();
-    };
+    // Check if file exists
+    fetch(src, { method: "HEAD" }).then(res => {
+      if (!res.ok) {
+        menu.textContent = "🍫 Idle";
+        busy = false;
+        idle.currentTime = 0;
+        idle.play();
+        return;
+      }
+
+      action.src = src;
+      action.load();
+
+      action.onloadeddata = () => {
+        idle.pause();
+        idle.currentTime = 0;
+        action.play();
+      };
+
+      action.onended = () => {
+        action.src = "";
+        busy = false;
+        menu.textContent = "🍫 Idle";
+        idle.currentTime = 0;
+        idle.play();
+      };
+    });
   }
 
   actionRef.on("value", snap => {
     const val = snap.val();
     if (!val) return;
-    queuedAction = val;
+
+    queuedAction = {
+      name: val,
+      type: ["hello", "thank"].includes(val)
+        ? "special"
+        : "random"
+    };
+
     menu.textContent = "🍫 Queued: " + val;
   });
 }
@@ -209,14 +246,28 @@ if (mode === "control") {
   const buttons = document.querySelectorAll("button");
 
   window.send = action => {
-    status.textContent = "Queued: " + action;
     buttons.forEach(b => b.disabled = true);
-    actionRef.set(action);
 
-    setTimeout(() => {
-      buttons.forEach(b => b.disabled = false);
-      status.textContent = "Idle";
-    }, 2000);
+    fetch(
+      (["hello", "thank"].includes(action)
+        ? PATHS.special
+        : PATHS.random) + action + ".mp4",
+      { method: "HEAD" }
+    ).then(res => {
+      if (!res.ok) {
+        status.textContent = "wala pang animation to, playing idle animation";
+        buttons.forEach(b => b.disabled = false);
+        return;
+      }
+
+      status.textContent = "Queued: " + action;
+      actionRef.set(action);
+
+      setTimeout(() => {
+        buttons.forEach(b => b.disabled = false);
+        status.textContent = "Idle";
+      }, 2000);
+    });
   };
 }
 </script>
