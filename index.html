@@ -36,6 +36,15 @@ video {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  background: transparent;
+}
+
+#idle {
+  z-index: 1;
+}
+
+#action {
+  z-index: 0;
 }
 
 /* ===== CONTROL ===== */
@@ -71,13 +80,6 @@ button {
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.status {
-  margin-top: 12px;
-  text-align: center;
-  font-size: 14px;
-  color: #666;
 }
 
 /* ===== ENTRANCE ===== */
@@ -136,8 +138,8 @@ function render() {
     app.innerHTML = `
       <div class="statusText" id="status">Idle</div>
       <div class="stage">
+        <video id="idle" autoplay loop muted playsinline></video>
         <video id="action" muted playsinline></video>
-        <video id="idle" muted playsinline loop></video>
       </div>
     `;
 
@@ -146,24 +148,13 @@ function render() {
     const status = document.getElementById("status");
 
     idle.src = PATHS.idle + "idle.mp4";
-    idle.play();
 
-    let queued = null;
     let busy = false;
+    let queued = null;
 
-    const randomActions = ["smile","happy","confused","surprised","look","sigh","blink"];
-
-    function weightedRandom() {
-      // blink slightly higher chance
-      if(Math.random() < 0.5) return "blink";
-      return randomActions[Math.floor(Math.random()*(randomActions.length-1))]; // exclude blink
-    }
-
-    function playQueuedAction() {
-      if (!queued || busy) return;
+    function playAction(name, type) {
+      if (busy) return;
       busy = true;
-      const {name,type} = queued;
-      queued = null;
 
       const folder =
         type === "special"
@@ -172,59 +163,44 @@ function render() {
 
       const src = folder + name + ".mp4";
 
-      // check if file exists
-      fetch(src, { method:"HEAD" }).then(res=>{
-        if(!res.ok){
+      fetch(src, { method: "HEAD" }).then(res => {
+        if (!res.ok) {
           status.textContent = "wala pang animation to, playing idle animation";
           busy = false;
           return;
         }
 
-        // load underlay
+        status.textContent = "Playing: " + name;
+
         action.src = src;
         action.load();
-        action.currentTime = 0;
 
-        // play after idle completes current loop
-        const onIdleEnd = () => {
-          idle.removeEventListener("ended", onIdleEnd);
-          idle.pause();
-          idle.currentTime = 0;
-
+        action.onloadeddata = () => {
+          action.currentTime = 0;
           action.play();
-          status.textContent = "Playing: " + name;
 
-          action.onended = () => {
-            action.src = "";
-            busy = false;
-            status.textContent = "Idle";
-            idle.play();
-          };
+          // 🔑 ONLY NOW do we swap layers
+          action.style.zIndex = 2;
+          idle.style.zIndex = 1;
         };
-        idle.addEventListener("ended", onIdleEnd);
+
+        action.onended = () => {
+          action.style.zIndex = 0;
+          action.src = "";
+          status.textContent = "Idle";
+          busy = false;
+        };
       });
     }
 
-    // Idle loop listener
-    idle.onended = () => {
-      if(!busy && queued) playQueuedAction();
-      else if(!busy && Math.random()<0.12){
-        queued = {name:weightedRandom(),type:"random"};
-        playQueuedAction();
-      }
-    };
-
-    // Firebase listener
-    actionRef.on("value", snap=>{
+    actionRef.on("value", snap => {
       const val = snap.val();
-      if(!val) return;
+      if (!val) return;
 
-      queued = {
-        name: val.name,
-        type: ["hello","thank"].includes(val.name) ? "special" : "random"
-      };
-      status.textContent = "Queued: " + val.name;
-      playQueuedAction();
+      playAction(
+        val.name,
+        ["hello","thank"].includes(val.name) ? "special" : "random"
+      );
     });
   }
 
@@ -252,44 +228,19 @@ function render() {
             <button onclick="send('blink')">Blink</button>
           </div>
         </div>
-
-        <div class="status" id="status">Idle</div>
       </div>
     `;
 
-    const status = document.getElementById("status");
-    const buttons = document.querySelectorAll("button");
-
-    window.send = action=>{
-      buttons.forEach(b=>b.disabled=true);
-
-      const folder = ["hello","thank"].includes(action)? PATHS.special : PATHS.random;
-      const src = folder + action + ".mp4";
-
-      fetch(src,{method:"HEAD"}).then(res=>{
-        if(!res.ok){
-          status.textContent = "wala pang animation to, playing idle animation";
-          buttons.forEach(b=>b.disabled=false);
-          return;
-        }
-
-        actionRef.set({
-          name: action,
-          time: Date.now()
-        });
-
-        status.textContent = "Queued: " + action;
-
-        setTimeout(()=>{
-          buttons.forEach(b=>b.disabled=false);
-          status.textContent = "Idle";
-        },2000);
+    window.send = name => {
+      actionRef.set({
+        name,
+        time: Date.now()
       });
     };
   }
 }
 
-window.addEventListener("hashchange",render);
+window.addEventListener("hashchange", render);
 render();
 </script>
 </body>
