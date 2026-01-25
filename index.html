@@ -19,14 +19,14 @@ body {
 .statusText {
   text-align: center;
   font-size: 13px;
-  color: rgba(0,0,0,0.35);
-  margin: 6px 0;
+  color: rgba(0,0,0,0.4);
+  margin: 8px 0;
 }
 
 .stage {
   position: relative;
-  width: 85%;
-  height: 65vh;
+  width: 80%;
+  height: 60vh;
   margin: auto;
 }
 
@@ -44,10 +44,11 @@ video {
 }
 
 .section {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
 .section h3 {
+  margin: 8px 0;
   font-size: 15px;
   color: #555;
 }
@@ -64,15 +65,17 @@ button {
   border-radius: 14px;
   border: none;
   background: #FFD166;
+  cursor: pointer;
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .status {
+  margin-top: 12px;
   text-align: center;
-  margin-top: 10px;
   font-size: 14px;
   color: #666;
 }
@@ -83,7 +86,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 18px;
+  gap: 20px;
   padding: 20px;
 }
 
@@ -118,7 +121,7 @@ function render() {
   const mode = location.hash.replace("#", "");
   app.innerHTML = "";
 
-  /* ===== ENTRANCE ===== */
+  /* ========= ENTRANCE ========= */
   if (!mode) {
     app.innerHTML = `
       <div class="entrance">
@@ -128,13 +131,13 @@ function render() {
     `;
   }
 
-  /* ===== DISPLAY ===== */
+  /* ========= DISPLAY ========= */
   if (mode === "display") {
     app.innerHTML = `
       <div class="statusText" id="status">Idle</div>
       <div class="stage">
         <video id="action" muted playsinline></video>
-        <video id="idle" muted playsinline></video>
+        <video id="idle" muted playsinline loop></video>
       </div>
     `;
 
@@ -143,93 +146,89 @@ function render() {
     const status = document.getElementById("status");
 
     idle.src = PATHS.idle + "idle.mp4";
-    idle.loop = false;
     idle.play();
 
     let queued = null;
     let busy = false;
 
-    const randomActions = ["smile","happy","confused","surprised","look","sigh"];
+    const randomActions = ["smile","happy","confused","surprised","look","sigh","blink"];
 
     function weightedRandom() {
-      return Math.random() < 0.4
-        ? "blink"
-        : randomActions[Math.floor(Math.random()*randomActions.length)];
+      // blink slightly higher chance
+      if(Math.random() < 0.5) return "blink";
+      return randomActions[Math.floor(Math.random()*(randomActions.length-1))]; // exclude blink
     }
 
-    idle.onended = () => {
-      if (queued && !busy) {
-        startAction(queued);
-        queued = null;
-        return;
-      }
-
-      if (!busy && Math.random() < 0.08) {
-        startAction({ name: weightedRandom(), type: "random" });
-        return;
-      }
-
-      idle.currentTime = 0;
-      idle.play();
-    };
-
-    function startAction(data) {
+    function playQueuedAction() {
+      if (!queued || busy) return;
       busy = true;
-      status.textContent = "Playing: " + data.name;
+      const {name,type} = queued;
+      queued = null;
 
       const folder =
-        data.name === "blink"
-          ? PATHS.idle
-          : data.type === "special"
-            ? PATHS.special
-            : PATHS.random;
+        type === "special"
+          ? PATHS.special
+          : (name === "blink" ? PATHS.idle : PATHS.random);
 
-      const src = folder + data.name + ".mp4";
+      const src = folder + name + ".mp4";
 
-      fetch(src, { method: "HEAD" }).then(res => {
-        if (!res.ok) {
+      // check if file exists
+      fetch(src, { method:"HEAD" }).then(res=>{
+        if(!res.ok){
+          status.textContent = "wala pang animation to, playing idle animation";
           busy = false;
-          status.textContent = "Idle";
-          idle.currentTime = 0;
-          idle.play();
           return;
         }
 
+        // load underlay
         action.src = src;
+        action.load();
         action.currentTime = 0;
-        action.pause();
 
-        action.onloadeddata = () => {
+        // play after idle completes current loop
+        const onIdleEnd = () => {
+          idle.removeEventListener("ended", onIdleEnd);
           idle.pause();
-          idle.style.opacity = 0;
-          action.play();
-        };
-
-        action.onended = () => {
-          action.src = "";
-          idle.style.opacity = 1;
           idle.currentTime = 0;
-          idle.play();
-          busy = false;
-          status.textContent = "Idle";
+
+          action.play();
+          status.textContent = "Playing: " + name;
+
+          action.onended = () => {
+            action.src = "";
+            busy = false;
+            status.textContent = "Idle";
+            idle.play();
+          };
         };
+        idle.addEventListener("ended", onIdleEnd);
       });
     }
 
-    actionRef.on("value", snap => {
+    // Idle loop listener
+    idle.onended = () => {
+      if(!busy && queued) playQueuedAction();
+      else if(!busy && Math.random()<0.12){
+        queued = {name:weightedRandom(),type:"random"};
+        playQueuedAction();
+      }
+    };
+
+    // Firebase listener
+    actionRef.on("value", snap=>{
       const val = snap.val();
-      if (!val) return;
+      if(!val) return;
 
       queued = {
         name: val.name,
         type: ["hello","thank"].includes(val.name) ? "special" : "random"
       };
-
       status.textContent = "Queued: " + val.name;
+      playQueuedAction();
     });
   }
 
-  /* ===== CONTROL ===== */
+  /* ========= CONTROL ========= */
   if (mode === "control") {
     app.innerHTML = `
       <div class="controls">
@@ -244,13 +243,13 @@ function render() {
         <div class="section">
           <h3>Random Actions</h3>
           <div class="grid">
-            <button onclick="send('blink')">Blink</button>
             <button onclick="send('smile')">Smile</button>
             <button onclick="send('happy')">Happy</button>
             <button onclick="send('confused')">Confused</button>
             <button onclick="send('surprised')">Surprised</button>
             <button onclick="send('look')">Look</button>
             <button onclick="send('sigh')">Sigh</button>
+            <button onclick="send('blink')">Blink</button>
           </div>
         </div>
 
@@ -258,39 +257,39 @@ function render() {
       </div>
     `;
 
-    window.send = name => {
-      const status = document.getElementById("status");
-      document.querySelectorAll("button").forEach(b => b.disabled = true);
+    const status = document.getElementById("status");
+    const buttons = document.querySelectorAll("button");
 
-      const folder =
-        name === "blink"
-          ? PATHS.idle
-          : ["hello","thank"].includes(name)
-            ? PATHS.special
-            : PATHS.random;
+    window.send = action=>{
+      buttons.forEach(b=>b.disabled=true);
 
-      fetch(folder + name + ".mp4", { method: "HEAD" }).then(res => {
-        if (!res.ok) {
+      const folder = ["hello","thank"].includes(action)? PATHS.special : PATHS.random;
+      const src = folder + action + ".mp4";
+
+      fetch(src,{method:"HEAD"}).then(res=>{
+        if(!res.ok){
           status.textContent = "wala pang animation to, playing idle animation";
-          document.querySelectorAll("button").forEach(b => b.disabled = false);
+          buttons.forEach(b=>b.disabled=false);
           return;
         }
 
         actionRef.set({
-          name,
+          name: action,
           time: Date.now()
         });
 
-        status.textContent = "Queued: " + name;
-        setTimeout(() => {
-          document.querySelectorAll("button").forEach(b => b.disabled = false);
-        }, 2500);
+        status.textContent = "Queued: " + action;
+
+        setTimeout(()=>{
+          buttons.forEach(b=>b.disabled=false);
+          status.textContent = "Idle";
+        },2000);
       });
     };
   }
 }
 
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange",render);
 render();
 </script>
 </body>
