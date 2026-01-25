@@ -9,38 +9,89 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-  body {
-    margin: 0;
-    background: #FFF5E1;
-    font-family: Arial, sans-serif;
-  }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #FFF5E1;
+}
 
-  .menu {
-    background: rgba(255,165,82,0.55);
-    color: white;
-    padding: 6px;
-    font-size: 13px;
-    text-align: center;
-  }
+/* ===== DISPLAY ===== */
+.statusText {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(0,0,0,0.35);
+  margin: 6px 0;
+}
 
-  .stage {
-    position: relative;
-    width: 80%;
-    height: 60vh;
-    margin: 18px auto;
-    background: #FFF5E1;
-    overflow: hidden;
-  }
+.stage {
+  position: relative;
+  width: 85%;
+  height: 65vh;
+  margin: auto;
+}
 
-  video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: #FFF5E1;
-    display: block;
-  }
+video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ===== CONTROL ===== */
+.controls {
+  padding: 16px;
+}
+
+.section {
+  margin-bottom: 18px;
+}
+
+.section h3 {
+  font-size: 15px;
+  color: #555;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+button {
+  aspect-ratio: 1 / 1;
+  font-size: 14px;
+  border-radius: 14px;
+  border: none;
+  background: #FFD166;
+}
+
+button:disabled {
+  opacity: 0.45;
+}
+
+.status {
+  text-align: center;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+/* ===== ENTRANCE ===== */
+.entrance {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 20px;
+}
+
+.entrance button {
+  aspect-ratio: unset;
+  padding: 18px;
+  font-size: 18px;
+}
 </style>
 </head>
 
@@ -48,146 +99,199 @@
 <div id="app"></div>
 
 <script>
-/* ================= FIREBASE ================= */
 firebase.initializeApp({
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
-const actionRef = firebase.database().ref("action");
 
-/* ================= ROUTER ================= */
-const mode = location.hash.replace("#", "");
+const db = firebase.database();
+const actionRef = db.ref("action");
 const app = document.getElementById("app");
-window.addEventListener("hashchange", () => location.reload());
 
-/* ================= LANDING ================= */
-if (!mode) {
-  app.innerHTML = `
-    <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
-      <h2>Smallo Booth</h2>
-      <button onclick="location.href='#display'">Display</button>
-      <button onclick="location.href='#control'">Control</button>
-    </div>`;
-}
+const PATHS = {
+  idle: "idle/",
+  random: "random-actions/",
+  special: "special-actions/"
+};
 
-/* ================= DISPLAY ================= */
-if (mode === "display") {
-  app.innerHTML = `
-    <div class="menu" id="menu">🍫 Smallo is idle</div>
-    <div class="stage">
-      <video id="mainVideo" muted playsinline></video>
-    </div>
-  `;
+function render() {
+  const mode = location.hash.replace("#", "");
+  app.innerHTML = "";
 
-  const menu = document.getElementById("menu");
-  const video = document.getElementById("mainVideo");
-
-  let queue = [];
-  let playing = "idle";
-
-  const RANDOM_ACTIONS = ["smile","happy","confused","surprised","look","sigh"];
-
-  function play(src, label) {
-    video.src = src;
-    video.load();
-    video.play().catch(()=>{});
-    menu.textContent = "🍫 " + label;
+  /* ===== ENTRANCE ===== */
+  if (!mode) {
+    app.innerHTML = `
+      <div class="entrance">
+        <button onclick="location.hash='control'">Control Page</button>
+        <button onclick="location.hash='display'">Display Page</button>
+      </div>
+    `;
   }
 
-  function enqueue(action) {
-    queue.push(action);
-  }
+  /* ===== DISPLAY ===== */
+  if (mode === "display") {
+    app.innerHTML = `
+      <div class="statusText" id="status">Idle</div>
+      <div class="stage">
+        <video id="action" muted playsinline></video>
+        <video id="idle" muted playsinline></video>
+      </div>
+    `;
 
-  function idleLoop() {
-    play("idle/idle.mp4", "Idle");
-    playing = "idle";
-  }
+    const idle = document.getElementById("idle");
+    const action = document.getElementById("action");
+    const status = document.getElementById("status");
 
-  /* Core loop logic — EVERYTHING happens here */
-  video.onended = () => {
-    /* Priority 1: queued control action */
-    if (queue.length > 0) {
-      const action = queue.shift();
-      play(action.src, "Playing: " + action.name);
-      playing = "action";
-      return;
+    idle.src = PATHS.idle + "idle.mp4";
+    idle.loop = false;
+    idle.play();
+
+    let queued = null;
+    let busy = false;
+
+    const randomActions = ["smile","happy","confused","surprised","look","sigh"];
+
+    function weightedRandom() {
+      return Math.random() < 0.4
+        ? "blink"
+        : randomActions[Math.floor(Math.random()*randomActions.length)];
     }
 
-    /* Priority 2: blink / random (decided ONLY at idle boundary) */
-    if (playing === "idle") {
-      const r = Math.random();
-
-      if (r < 0.45) {
-        play("idle/blink.mp4", "Blink");
-        playing = "blink";
+    idle.onended = () => {
+      if (queued && !busy) {
+        startAction(queued);
+        queued = null;
         return;
       }
 
-      if (r < 0.65) {
-        const name = RANDOM_ACTIONS[Math.floor(Math.random()*RANDOM_ACTIONS.length)];
-        play("random-actions/" + name + ".mp4", "Playing: " + name);
-        playing = "random";
+      if (!busy && Math.random() < 0.08) {
+        startAction({ name: weightedRandom(), type: "random" });
         return;
       }
+
+      idle.currentTime = 0;
+      idle.play();
+    };
+
+    function startAction(data) {
+      busy = true;
+      status.textContent = "Playing: " + data.name;
+
+      const folder =
+        data.name === "blink"
+          ? PATHS.idle
+          : data.type === "special"
+            ? PATHS.special
+            : PATHS.random;
+
+      const src = folder + data.name + ".mp4";
+
+      fetch(src, { method: "HEAD" }).then(res => {
+        if (!res.ok) {
+          busy = false;
+          status.textContent = "Idle";
+          idle.currentTime = 0;
+          idle.play();
+          return;
+        }
+
+        action.src = src;
+        action.currentTime = 0;
+        action.pause();
+
+        action.onloadeddata = () => {
+          idle.pause();
+          idle.style.opacity = 0;
+          action.play();
+        };
+
+        action.onended = () => {
+          action.src = "";
+          idle.style.opacity = 1;
+          idle.currentTime = 0;
+          idle.play();
+          busy = false;
+          status.textContent = "Idle";
+        };
+      });
     }
 
-    /* Fallback: continue idle loop */
-    idleLoop();
-  };
+    actionRef.on("value", snap => {
+      const val = snap.val();
+      if (!val) return;
 
-  /* Start */
-  idleLoop();
+      queued = {
+        name: val.name,
+        type: ["hello","thank"].includes(val.name) ? "special" : "random"
+      };
 
-  /* Firebase listener */
-  actionRef.on("value", snap => {
-    const val = snap.val();
-    if (!val || !val.name) return;
-
-    let folder = "random-actions";
-    if (["hello","thank"].includes(val.name)) folder = "special-actions";
-
-    const src = folder + "/" + val.name + ".mp4";
-
-    fetch(src, { method: "HEAD" }).then(res => {
-      if (!res.ok) {
-        menu.textContent = "🍫 Missing animation, playing idle";
-        return;
-      }
-
-      enqueue({ name: val.name, src });
-      menu.textContent = "🍫 Queued: " + val.name;
+      status.textContent = "Queued: " + val.name;
     });
-  });
+  }
+
+  /* ===== CONTROL ===== */
+  if (mode === "control") {
+    app.innerHTML = `
+      <div class="controls">
+        <div class="section">
+          <h3>Special Actions</h3>
+          <div class="grid">
+            <button onclick="send('hello')">Hello</button>
+            <button onclick="send('thank')">Thank</button>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Random Actions</h3>
+          <div class="grid">
+            <button onclick="send('blink')">Blink</button>
+            <button onclick="send('smile')">Smile</button>
+            <button onclick="send('happy')">Happy</button>
+            <button onclick="send('confused')">Confused</button>
+            <button onclick="send('surprised')">Surprised</button>
+            <button onclick="send('look')">Look</button>
+            <button onclick="send('sigh')">Sigh</button>
+          </div>
+        </div>
+
+        <div class="status" id="status">Idle</div>
+      </div>
+    `;
+
+    window.send = name => {
+      const status = document.getElementById("status");
+      document.querySelectorAll("button").forEach(b => b.disabled = true);
+
+      const folder =
+        name === "blink"
+          ? PATHS.idle
+          : ["hello","thank"].includes(name)
+            ? PATHS.special
+            : PATHS.random;
+
+      fetch(folder + name + ".mp4", { method: "HEAD" }).then(res => {
+        if (!res.ok) {
+          status.textContent = "wala pang animation to, playing idle animation";
+          document.querySelectorAll("button").forEach(b => b.disabled = false);
+          return;
+        }
+
+        actionRef.set({
+          name,
+          time: Date.now()
+        });
+
+        status.textContent = "Queued: " + name;
+        setTimeout(() => {
+          document.querySelectorAll("button").forEach(b => b.disabled = false);
+        }, 2500);
+      });
+    };
+  }
 }
 
-/* ================= CONTROL ================= */
-if (mode === "control") {
-  app.innerHTML = `
-    <div style="padding:16px;max-width:520px;margin:auto">
-      <h3>Special Actions</h3>
-      <button onclick="send('hello')">Hello</button>
-      <button onclick="send('thank')">Thank</button>
-
-      <h3 style="margin-top:16px">Random Actions</h3>
-      <button onclick="send('smile')">Smile</button>
-      <button onclick="send('happy')">Happy</button>
-      <button onclick="send('confused')">Confused</button>
-      <button onclick="send('surprised')">Surprised</button>
-      <button onclick="send('look')">Look</button>
-      <button onclick="send('sigh')">Sigh</button>
-
-      <div id="status" style="margin-top:12px;color:#666"></div>
-    </div>
-  `;
-
-  window.send = name => {
-    document.getElementById("status").textContent = "Queued: " + name;
-    actionRef.set({
-      name,
-      ts: Date.now()
-    });
-  };
-}
+window.addEventListener("hashchange", render);
+render();
 </script>
 </body>
 </html>
