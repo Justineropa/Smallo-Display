@@ -1,47 +1,34 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <title>Smallo Booth</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
-  :root {
-    --bg: #FFF5E1;
-    --accent: rgba(255,165,82,0.92);
-    --muted: #666;
-    --button: #FFD166;
+  body {
+    margin: 0;
+    background: #FFF5E1;
+    font-family: Arial, sans-serif;
   }
 
-  html,body { height: 100%; margin: 0; background: var(--bg); font-family: Arial, sans-serif; }
-
-  /* Top menu (less prominent now) */
   .menu {
-    background: var(--accent);
+    background: rgba(255,165,82,0.75);
     color: white;
-    padding: 8px;
-    font-weight: 600;
+    padding: 6px;
+    font-size: 13px;
     text-align: center;
-    font-size: 14px;
-    opacity: 0.95;
   }
 
-  /* Stage */
   .stage {
     position: relative;
     width: 80%;
-    max-width: 960px;
-    height: 56vh;
-    max-height: 720px;
-    margin: 18px auto;
-    background: var(--bg);            /* ensure same bg so no visible banding */
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    transform: translateZ(0);         /* hint GPU compositing to reduce artifacts */
+    height: 60vh;
+    margin: 20px auto;
+    background: #FFF5E1;
     overflow: hidden;
   }
 
@@ -51,303 +38,139 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    display: block;                   /* avoids inline baseline gap */
-    border: none;
-    background: var(--bg);            /* ensure letterbox area matches page */
+    background: #FFF5E1;
   }
 
-  /* Controls (grid squares) */
-  .controls { padding: 16px; max-width: 520px; margin: 0 auto; }
-
-  .section { margin-bottom: 18px; }
-  .section h3 { margin: 6px 0; color: #444; font-size: 15px; }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  button {
-    aspect-ratio: 1 / 1;
-    font-size: 14px;
-    border-radius: 12px;
-    border: none;
-    background: var(--button);
-    cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.06);
-  }
-
-  button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .status {
-    margin-top: 12px;
-    text-align: center;
-    font-size: 14px;
-    color: var(--muted);
-  }
+  #idleVideo { z-index: 1; }
+  #actionVideo { z-index: 2; display: none; }
 </style>
 </head>
-<body>
 
+<body>
 <div id="app"></div>
 
 <script>
-/* ========== FIREBASE ========== */
 firebase.initializeApp({
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app"
 });
-const db = firebase.database();
-const actionRef = db.ref("action");
 
-/* ========== PATHS ========== */
-const PATHS = {
-  idleFolder: "idle/",             // idle/idle.mp4 and idle/blink.mp4
-  idleFile: "idle/idle.mp4",
-  random: "random-actions/",
-  special: "special-actions/"
-};
+const actionRef = firebase.database().ref("action");
+const mode = location.hash.replace("#", "");
+const app = document.getElementById("app");
 
-/* ========== NAVIGATION FIX ========== */
-/* Some browsers won't re-run inline scripts on hashchange; reload to ensure rendering works.
-   This avoids "tap to go to control/display does nothing" issues you reported. */
-window.addEventListener('hashchange', () => {
-  // quick reload keeps app code simple and consistent
-  location.reload();
-});
+window.addEventListener("hashchange", () => location.reload());
 
-/* ========== ROUTER / RENDERER ========= */
-const mode = location.hash.replace('#','');
-const app = document.getElementById('app');
-
+/* ---------- LANDING ---------- */
 if (!mode) {
   app.innerHTML = `
-    <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+    <div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px">
       <h2>Smallo Booth</h2>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;">
-        <button style="padding:12px 18px;" onclick="location.href='#display'">Open Display Page</button>
-        <button style="padding:12px 18px;" onclick="location.href='#control'">Open Control Page</button>
-      </div>
-    </div>
-  `;
+      <button onclick="location.href='#display'">Display</button>
+      <button onclick="location.href='#control'">Control</button>
+    </div>`;
 }
 
-/* ------------------ DISPLAY PAGE ------------------ */
-if (mode === 'display') {
+/* ---------- DISPLAY ---------- */
+if (mode === "display") {
   app.innerHTML = `
     <div class="menu" id="menu">🍫 Smallo is idle</div>
     <div class="stage">
-      <video id="idleVideo" muted playsinline></video>
+      <video id="idleVideo" muted autoplay loop playsinline></video>
       <video id="actionVideo" muted playsinline></video>
-    </div>
-  `;
+    </div>`;
 
-  const menu = document.getElementById('menu');
-  const idleVideo = document.getElementById('idleVideo');
-  const actionVideo = document.getElementById('actionVideo');
+  const menu = document.getElementById("menu");
+  const idleVideo = document.getElementById("idleVideo");
+  const actionVideo = document.getElementById("actionVideo");
 
-  // ensure idle background file is set and played
-  idleVideo.src = PATHS.idleFile;
-  idleVideo.load();
-  idleVideo.play().catch(()=>{}); // autoplay may throw, but it's muted
+  idleVideo.src = "idle/idle.mp4";
+  idleVideo.play().catch(()=>{});
 
-  let queuedAction = null;
   let busy = false;
 
-  // random action list (blink handled specially)
-  const randomActions = [ "smile","happy","confused","surprised","look","sigh" ];
-
-  // pick a weighted random: blink more likely than other randoms
-  function weightedRandomPick() {
-    const r = Math.random();
-    if (r < 0.45) return "blink"; // blink is more frequent
-    return randomActions[Math.floor(Math.random()*randomActions.length)];
-  }
-
-  // Idle ended -> decide what to do
-  idleVideo.onended = () => {
-    if (queuedAction && !busy) {
-      playAction(queuedAction.name, queuedAction.type);
-      queuedAction = null;
-      return;
-    }
-
-    // lowered overall random chance
-    if (!busy && Math.random() < 0.12) {
-      const name = weightedRandomPick();
-      // blink is in idle folder; others in random folder
-      const type = (name === 'blink') ? 'idle-variant' : 'random';
-      playAction(name, type);
-      return;
-    }
-
-    // otherwise restart idle segment
-    idleVideo.currentTime = 0;
-    idleVideo.play().catch(()=>{});
-  };
-
-  // playAction: ensures file exists, plays action, then returns to idle
-  function playAction(name, type) {
+  function playAction(name, folder) {
+    if (busy) return;
     busy = true;
-    menu.textContent = '🍫 Playing: ' + name;
 
-    // choose folder/file
-    let src;
-    if (type === 'special') {
-      src = PATHS.special + name + '.mp4';
-    } else if (type === 'idle-variant') {
-      src = PATHS.idleFolder + name + '.mp4';
-    } else {
-      src = PATHS.random + name + '.mp4';
-    }
+    const src = `${folder}/${name}.mp4`;
+    menu.textContent = "🍫 Playing: " + name;
 
-    // verify file presence quickly with HEAD
-    fetch(src, { method: 'HEAD' }).then(res => {
+    fetch(src, { method: "HEAD" }).then(res => {
       if (!res.ok) {
-        // missing file -> gracefully fall back to idle and show nothing
         busy = false;
-        menu.textContent = '🍫 Idle';
-        idleVideo.currentTime = 0;
-        idleVideo.play().catch(()=>{});
+        menu.textContent = "🍫 Idle";
         return;
       }
 
-      // file exists: load and play action
       actionVideo.src = src;
-      actionVideo.load();
-
-      actionVideo.onloadeddata = () => {
-        // Pause idle and play action; actionVideo plays on top
-        try { idleVideo.pause(); } catch(e){}
-        actionVideo.currentTime = 0;
-        actionVideo.play().catch(()=>{});
-      };
+      actionVideo.style.display = "block";
+      actionVideo.currentTime = 0;
+      actionVideo.play().catch(()=>{});
 
       actionVideo.onended = () => {
-        // clear action, go back to idle
-        actionVideo.removeAttribute('src');
-        actionVideo.load();
+        actionVideo.style.display = "none";
+        actionVideo.removeAttribute("src");
         busy = false;
-        menu.textContent = '🍫 Idle';
-        idleVideo.currentTime = 0;
-        idleVideo.play().catch(()=>{});
+        menu.textContent = "🍫 Idle";
       };
-    }).catch(() => {
-      busy = false;
-      menu.textContent = '🍫 Idle';
-      idleVideo.currentTime = 0;
-      idleVideo.play().catch(()=>{});
     });
   }
 
-  // Listen for control updates in Firebase (object with name + ts)
-  actionRef.on('value', snap => {
-    const val = snap.val();
-    if (!val) return;
-    // Support both legacy plain-string and new object format
-    const name = (typeof val === 'string') ? val : (val.name || null);
-    if (!name) return;
+  /* Random idle behavior */
+  setInterval(() => {
+    if (busy) return;
+    const r = Math.random();
 
-    queuedAction = {
-      name,
-      type: (['hello','thank'].includes(name) ? 'special' : (name === 'blink' ? 'idle-variant' : 'random'))
-    };
-    menu.textContent = '🍫 Queued: ' + name;
+    if (r < 0.12) {
+      playAction("blink", "idle");
+    } else if (r < 0.22) {
+      const list = ["smile","happy","confused","surprised","look","sigh"];
+      playAction(list[Math.floor(Math.random()*list.length)], "random-actions");
+    }
+  }, 3500);
+
+  /* Firebase actions */
+  actionRef.on("value", snap => {
+    const v = snap.val();
+    if (!v || !v.name) return;
+
+    if (["hello","thank"].includes(v.name)) {
+      playAction(v.name, "special-actions");
+    } else {
+      playAction(v.name, "random-actions");
+    }
   });
 }
 
-/* ------------------ CONTROL PAGE ------------------ */
-if (mode === 'control') {
+/* ---------- CONTROL ---------- */
+if (mode === "control") {
   app.innerHTML = `
-    <div class="controls">
-      <div class="section">
-        <h3>Special Actions</h3>
-        <div class="grid">
-          <button id="btn-hello">Hello</button>
-          <button id="btn-thank">Thank</button>
-        </div>
-      </div>
+    <div style="padding:16px;max-width:520px;margin:auto">
+      <h3>Special</h3>
+      <button onclick="send('hello')">Hello</button>
+      <button onclick="send('thank')">Thank</button>
 
-      <div class="section">
-        <h3>Random Actions</h3>
-        <div class="grid">
-          <button id="btn-smile">Smile</button>
-          <button id="btn-happy">Happy</button>
-          <button id="btn-confused">Confused</button>
-          <button id="btn-surprised">Surprised</button>
-          <button id="btn-look">Look</button>
-          <button id="btn-sigh">Sigh</button>
-        </div>
-      </div>
+      <h3 style="margin-top:16px">Random</h3>
+      <button onclick="send('smile')">Smile</button>
+      <button onclick="send('happy')">Happy</button>
+      <button onclick="send('confused')">Confused</button>
+      <button onclick="send('surprised')">Surprised</button>
+      <button onclick="send('look')">Look</button>
+      <button onclick="send('sigh')">Sigh</button>
 
-      <div class="status" id="status">Idle</div>
-    </div>
-  `;
+      <div id="status" style="margin-top:12px;color:#666"></div>
+    </div>`;
 
-  const status = document.getElementById('status');
-  const allButtons = document.querySelectorAll('button');
-
-  // Helper to enable/disable buttons
-  function setButtonsDisabled(v) {
-    allButtons.forEach(b => b.disabled = v);
-  }
-
-  // Sends an action to Firebase, but first checks if the file exists.
-  // We write { name, ts } to ensure repeated presses create a new DB value.
-  async function sendAction(name) {
-    setButtonsDisabled(true);
-    status.textContent = 'Checking animation...';
-
-    // Determine file path
-    const folder = (['hello','thank'].includes(name)) ? PATHS.special : ((name === 'blink') ? PATHS.idleFolder : PATHS.random);
-    const src = folder + name + '.mp4';
-
-    try {
-      const res = await fetch(src, { method: 'HEAD' });
-      if (!res.ok) {
-        status.textContent = 'wala pang animation to, playing idle animation';
-        setTimeout(()=> status.textContent = 'Idle', 2100);
-        setButtonsDisabled(false);
-        return;
-      }
-    } catch (err) {
-      // network failure — treat as missing
-      status.textContent = 'wala pang animation to, playing idle animation';
-      setTimeout(()=> status.textContent = 'Idle', 2100);
-      setButtonsDisabled(false);
-      return;
-    }
-
-    // file exists: push to Firebase as object so repeated presses register
+  window.send = name => {
+    document.getElementById("status").textContent = "Queued: " + name;
     actionRef.set({
       name,
-      ts: firebase.database.ServerValue.TIMESTAMP
-    }).catch(()=>{ /* ignore */ });
-
-    status.textContent = 'Queued: ' + name;
-
-    // Re-enable after short time (display will play when its idle loop allows)
-    setTimeout(()=> {
-      status.textContent = 'Idle';
-      setButtonsDisabled(false);
-    }, 1200);
-  }
-
-  // Attach buttons
-  document.getElementById('btn-hello').onclick = () => sendAction('hello');
-  document.getElementById('btn-thank').onclick = () => sendAction('thank');
-  document.getElementById('btn-smile').onclick = () => sendAction('smile');
-  document.getElementById('btn-happy').onclick = () => sendAction('happy');
-  document.getElementById('btn-confused').onclick = () => sendAction('confused');
-  document.getElementById('btn-surprised').onclick = () => sendAction('surprised');
-  document.getElementById('btn-look').onclick = () => sendAction('look');
-  document.getElementById('btn-sigh').onclick = () => sendAction('sigh');
+      ts: Date.now()
+    });
+  };
 }
 </script>
 </body>
 </html>
+ 
