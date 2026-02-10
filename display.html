@@ -1,88 +1,77 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Smallo Display</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <style>
-    body { margin:0; display:flex; height:100vh; overflow:hidden; }
-    #menu { width:50%; background:#6b8e6e; padding:10px; overflow:auto; }
-    #right { width:50%; display:flex; flex-direction:column; }
+    html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif}
+    /* layout */
+    .main { display: grid; grid-template-columns:50% 50%; height:100vh; }
+    #menu { background:#6b8e6e; padding:12px; overflow:auto; }
+    #right { display:grid; grid-template-rows:60% 40%; background:#111; }
 
-    #smallo {
-      height:50%;
-      background:#fff5e1;
-      position:relative;
-      overflow:hidden;
-    }
-
-    #smallo video {
-      position:absolute;
-      inset:0;
-      width:100%;
-      height:100%;
-      object-fit:contain;
-    }
-
+    /* smallo area */
+    #smallo { background:#FFF5E1; position:relative; overflow:hidden; }
+    #smallo video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:transparent; }
     #idleVideo { z-index:1; }
-    #actionVideo {
-      z-index:2;
-      opacity:0;
-      transition:opacity 120ms linear;
-    }
+    #actionVideo { z-index:2; opacity:0; transition: opacity 140ms linear; pointer-events:none; }
 
-    #products {
-      height:50%;
-      background:#222;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-    }
+    /* products */
+    #products { display:flex; align-items:center; justify-content:center; background:#222; }
+    #products img { max-width:90%; max-height:90%; border-radius:10px; transition:opacity .35s; }
 
-    #products img { max-width:100%; max-height:100%; }
+    /* fullscreen button (visible enough) */
+    #fsBtn { position:fixed; top:10px; right:10px; padding:6px 10px; background:rgba(0,0,0,0.35); color:#fff; border-radius:8px; z-index:999; cursor:pointer; font-size:12px; }
 
-    #fs {
-      position:fixed;
-      bottom:6px;
-      right:6px;
-      width:44px;
-      height:44px;
-      opacity:0.12;
-    }
+    /* small status (hidden) */
+    #debug { position:fixed; left:10px; bottom:10px; color:#222; background:rgba(255,255,255,0.75); padding:6px 8px; border-radius:6px; font-size:12px; }
   </style>
 </head>
 <body>
 
-<div id="menu">
-  <!-- CANVA UNCHANGED -->
-  <div style="position: relative; width: 100%; height: 0; padding-top: 125.0000%;
-   padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
-   border-radius: 8px; will-change: transform;">
-    <iframe loading="lazy" style="position:absolute;width:100%;height:100%;top:0;left:0;border:none;"
-      src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed"
-      allowfullscreen allow="fullscreen"></iframe>
+<div class="main">
+
+  <!-- LEFT: CANVA (unchanged) -->
+  <div id="menu">
+    <div style="position: relative; width: 100%; height: 0; padding-top: 125.0000%;
+     padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
+     border-radius: 8px; will-change: transform;">
+      <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0;margin: 0;"
+        src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed" allowfullscreen="allowfullscreen" allow="fullscreen">
+      </iframe>
+    </div>
+    <a href="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view" target="_blank" rel="noopener" style="color:#fff">Open in Canva</a>
+  </div>
+
+  <!-- RIGHT: smallo + products -->
+  <div id="right">
+    <div id="smallo">
+      <!-- Idle ALWAYS playing underlay (never changed) -->
+      <video id="idleVideo" autoplay muted playsinline preload="auto" loop>
+        <source src="videos/idle.mp4" type="video/mp4">
+      </video>
+
+      <!-- Action overlay -->
+      <video id="actionVideo" muted playsinline preload="auto"></video>
+    </div>
+
+    <div id="products">
+      <img id="productImg" src="products/product1.jpg" alt="product preview">
+    </div>
   </div>
 </div>
 
-<div id="right">
-  <div id="smallo">
-    <video id="idleVideo" autoplay muted loop preload="auto">
-      <source src="videos/idle.mp4" type="video/mp4">
-    </video>
-    <video id="actionVideo" muted preload="auto"></video>
-  </div>
-
-  <div id="products">
-    <img id="productImg" src="products/product1.jpg">
-  </div>
-</div>
-
-<button id="fs"></button>
+<button id="fsBtn">⛶ Fullscreen</button>
+<div id="debug" style="display:none"></div>
 
 <script>
+/* ================== Firebase config (use the config you supplied) ================== */
 const firebaseConfig = {
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   authDomain: "smallo-live.firebaseapp.com",
@@ -90,65 +79,180 @@ const firebaseConfig = {
   projectId: "smallo-live",
   storageBucket: "smallo-live.firebasestorage.app",
   messagingSenderId: "1017470725882",
-  appId: "1:1017470725882:web:929ee126247fcbb51e6343"
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+  measurementId: "G-QTZTK6G2XL"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+/* ================== DOM refs ================== */
+const idleVideo = document.getElementById("idleVideo");
 const actionVideo = document.getElementById("actionVideo");
-let busy = false;
+const fsBtn = document.getElementById("fsBtn");
+const debug = document.getElementById("debug");
 
-/* ACTION QUEUE */
-db.ref("queue").on("value", snap => {
-  const queue = snap.val() || [];
-  if (!busy && queue.length) {
-    playAction(queue[0]);
-    db.ref("queue").set(queue.slice(1));
+/* ================== Queue setup (push-list) ================== */
+const queueRef = db.ref("queue");
+const nowPlayingRef = db.ref("nowPlaying"); // for control pages to know state
+
+let localQueue = [];        // array of { key, name, type }
+let processing = false;
+
+/* helper: show debug */
+function dbg(msg){ debug.style.display='block'; debug.textContent = msg; }
+
+/* listen for new queue items (reliable) */
+queueRef.on("child_added", snap => {
+  const data = snap.val();
+  localQueue.push({ key: snap.key, name: data.name, type: data.type || "random" });
+  // Immediately attempt to process
+  processQueue();
+});
+
+/* also listen for removals to keep UI consistent (not strictly needed here) */
+queueRef.on("child_removed", snap => {
+  // remove from localQueue if present (safety)
+  localQueue = localQueue.filter(it => it.key !== snap.key);
+});
+
+/* process items one-by-one */
+function processQueue(){
+  if (processing) return;
+  if (!localQueue.length) return;
+  const item = localQueue.shift();
+  processing = true;
+
+  // preload and play overlay without touching idle (no pause)
+  const actionName = item.name;
+  const folder = (item.name === "blink") ? "videos/" : "videos/";
+  const src = `${folder}${actionName}.mp4`;
+
+  // try HEAD to detect missing file (optional)
+  fetch(src, { method: "HEAD" }).then(res => {
+    if (!res.ok) {
+      // remove node and bail
+      queueRef.child(item.key).remove().catch(()=>{});
+      processing = false;
+      processQueue(); // try next
+      return;
+    }
+
+    // set nowPlaying so controls can disable while playing
+    nowPlayingRef.set({ name: actionName, ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
+
+    // prepare the overlay
+    actionVideo.pause();
+    actionVideo.removeAttribute("src");
+    actionVideo.src = src;
+    actionVideo.load();
+    actionVideo.currentTime = 0;
+
+    // wait for a real frame before showing
+    const onLoaded = () => {
+      // use requestVideoFrameCallback when available
+      const showAndPlay = () => {
+        // show overlay
+        actionVideo.style.opacity = 1;
+
+        // start playing (actionVideo should be ready)
+        const playPromise = actionVideo.play();
+        if (playPromise && playPromise.catch) {
+          playPromise.catch(()=>{ /* autoplay policy suppressed; but muted should allow */ });
+        }
+
+        // remove queue node from db now that we own it (so other displays won't also play it)
+        queueRef.child(item.key).remove().catch(()=>{});
+
+        // when action ends -> hide overlay, clear nowPlaying, continue
+        actionVideo.onended = () => {
+          actionVideo.onended = null;
+          // fade/hide
+          actionVideo.style.opacity = 0;
+
+          // clear nowPlaying
+          nowPlayingRef.set({ name: "idle", ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
+
+          // cleanup src after small delay (avoid showing black on some devices)
+          setTimeout(()=>{
+            actionVideo.pause();
+            actionVideo.removeAttribute("src");
+            try { actionVideo.load(); } catch(e){}
+          }, 120);
+
+          processing = false;
+          // process next item if any
+          setTimeout(processQueue, 40);
+        };
+      };
+
+      if (typeof actionVideo.requestVideoFrameCallback === "function") {
+        // wait for first painted frame
+        actionVideo.requestVideoFrameCallback(() => {
+          showAndPlay();
+        });
+      } else {
+        // fallback: small delay after loadeddata
+        setTimeout(showAndPlay, 60);
+      }
+    };
+
+    actionVideo.onloadeddata = onLoaded;
+    actionVideo.onerror = () => {
+      // remove node and continue
+      queueRef.child(item.key).remove().catch(()=>{});
+      processing = false;
+      processQueue();
+    };
+  }).catch(err=>{
+    // network/permission errors: remove node and continue
+    queueRef.child(item.key).remove().catch(()=>{});
+    processing = false;
+    processQueue();
+  });
+}
+
+/* ================== Random actions & blink ================== */
+/* Random actions: smile, look_around, sleep — ~25% chance every 9-12s */
+const randomActions = ["smile","look_around","sleep"];
+function maybeEnqueueRandom(){
+  if (processing) return;
+  if (Math.random() < 0.25) {
+    const pick = randomActions[Math.floor(Math.random()*randomActions.length)];
+    queueRef.push({ name: pick, type: "random", ts: firebase.database.ServerValue.TIMESTAMP });
+  }
+}
+setInterval(maybeEnqueueRandom, 9000 + Math.floor(Math.random()*3000));
+
+/* Blink (45% chance) — lighter, more frequent */
+function maybeBlink(){
+  if (processing) return;
+  if (Math.random() < 0.45) {
+    queueRef.push({ name: "blink", type: "blink", ts: firebase.database.ServerValue.TIMESTAMP });
+  }
+}
+setInterval(maybeBlink, 8000 + Math.floor(Math.random()*3000));
+
+/* ================== Products carousel ================== */
+const productImgs = ["products/product1.jpg","products/product2.jpg","products/product3.jpg"];
+let pIdx = 0;
+const productImgEl = document.getElementById("productImg");
+setInterval(()=>{
+  pIdx = (pIdx + 1) % productImgs.length;
+  productImgEl.style.opacity = 0;
+  setTimeout(()=>{ productImgEl.src = productImgs[pIdx]; productImgEl.style.opacity = 1; }, 280);
+}, 4000);
+
+/* ================== Fullscreen ================== */
+fsBtn.addEventListener("click", () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(()=>{});
+  } else {
+    document.exitFullscreen().catch(()=>{});
   }
 });
 
-function playAction(name) {
-  busy = true;
-  actionVideo.src = `videos/${name}.mp4`;
-  actionVideo.currentTime = 0;
-
-  actionVideo.onloadeddata = () => {
-    actionVideo.style.opacity = 1;
-    actionVideo.play();
-  };
-
-  actionVideo.onended = () => {
-    actionVideo.style.opacity = 0;
-    busy = false;
-  };
-}
-
-/* RANDOM ACTIONS */
-const randomActions = ["smile", "look_around", "sleep"];
-
-setInterval(() => {
-  if (busy) return;
-  if (Math.random() < 0.75) {
-    const action = randomActions[Math.floor(Math.random()*randomActions.length)];
-    playAction(action);
-  }
-}, 10000);
-
-/* BLINK */
-setInterval(() => {
-  if (!busy && Math.random() < 0.45) playAction("blink");
-}, 9000);
-
-/* PRODUCTS */
-const imgs=["products/product1.jpg","products/product2.jpg","products/product3.jpg"];
-let i=0;
-setInterval(()=>{ i=(i+1)%imgs.length; productImg.src=imgs[i]; },3000);
-
-/* FULLSCREEN */
-fs.onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); };
+/* Initialize nowPlaying to idle */
+nowPlayingRef.set({ name: "idle", ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
 </script>
-
 </body>
 </html>
- 
