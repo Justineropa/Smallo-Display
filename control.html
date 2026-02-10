@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smallo Control</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<style>
+body {
+  margin: 0;
+  padding: 24px;
+  font-family: Arial, sans-serif;
+  background: #fff7f0;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+button {
+  padding: 20px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  background: #ffd166;
+  cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<h3>Smallo Control</h3>
+
+<div class="controls">
+  <button onclick="send('hello')">Hello</button>
+  <button onclick="send('thank')">Thank</button>
+  <button onclick="send('smile')">Smile</button>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+  authDomain: "smallo-live.firebaseapp.com",
+  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smallo-live",
+  storageBucket: "smallo-live.firebasestorage.app",
+  messagingSenderId: "1017470725882",
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343"
+});
+
+const db = firebase.database();
+const actionRef = db.ref("action");
+
+function send(action) {
+  actionRef.set(action);
+}
+</script>
+
+</body>
+</html>
