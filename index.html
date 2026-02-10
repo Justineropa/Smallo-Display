@@ -24,7 +24,7 @@ html, body {
 
 /* LEFT: CANVA MENU */
 .menu {
-  padding: 16px;
+  padding: 12px;
   overflow: hidden;
 }
 
@@ -40,7 +40,7 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #fff;
+  background: #ffffff;
 }
 
 video {
@@ -65,29 +65,56 @@ video {
   transition: opacity 0.5s ease;
 }
 
-/* ---------- HIDDEN FULLSCREEN BUTTON ---------- */
+/* ---------- FULLSCREEN BUTTON ---------- */
 #fullscreenBtn {
   position: fixed;
-  top: 6px;
-  right: 6px;
-  width: 22px;
-  height: 22px;
-  opacity: 0.04;
+  top: 10px;
+  right: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
   z-index: 999;
+  user-select: none;
+}
+
+#fullscreenBtn:active {
+  transform: scale(0.95);
 }
 </style>
 </head>
 
 <body>
 
-<!-- HIDDEN FULLSCREEN BUTTON -->
-<div id="fullscreenBtn"></div>
+<!-- FULLSCREEN BUTTON -->
+<div id="fullscreenBtn">⛶ Fullscreen</div>
 
 <div class="main">
 
   <!-- LEFT: CANVA MENU -->
   <div class="menu">
-    <!-- 🔽 PASTE YOUR CANVA EMBED HERE 🔽 -->
+
+    <!-- CANVA EMBED -->
+    <div style="
+      position: relative;
+      width: 100%;
+      height: 0;
+      padding-top: 125%;
+      overflow: hidden;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(63,69,81,0.16);
+    ">
+      <iframe
+        loading="lazy"
+        style="position:absolute; inset:0; width:100%; height:100%; border:none;"
+        src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed"
+        allowfullscreen
+        allow="fullscreen">
+      </iframe>
+    </div>
+
   </div>
 
   <!-- RIGHT SIDE -->
@@ -112,6 +139,8 @@ video {
 document.getElementById("fullscreenBtn").addEventListener("click", () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
   }
 });
 
@@ -134,22 +163,15 @@ setInterval(() => {
   }, 300);
 }, 4000);
 
-/* ---------- SMALLO LOGIC (DISPLAY SIDE) ---------- */
+/* ---------- SMALLO DISPLAY LOGIC (READY FOR FIREBASE) ---------- */
 const idleVideo = document.getElementById("idleVideo");
 const actionVideo = document.getElementById("actionVideo");
-
-/* This listens for Firebase / messages later
-   For now, display page is READY for:
-   - preload action underneath idle
-   - swap at idle loop boundary
-*/
 
 function playAction(path) {
   actionVideo.src = path;
   actionVideo.load();
 
   actionVideo.onloadeddata = () => {
-    actionVideo.currentTime = 0;
     actionVideo.play();
     idleVideo.pause();
 
@@ -160,13 +182,8 @@ function playAction(path) {
     };
   };
 }
-
-/* Example manual test (remove later):
-setTimeout(() => {
-  playAction("special actions/hello.mp4");
-}, 5000);
-*/
 </script>
 
 </body>
 </html>
+ 
