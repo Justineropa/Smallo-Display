@@ -15,19 +15,65 @@ body {
   background: #FFF5E1;
 }
 
-/* ===== DISPLAY ===== */
-.statusText {
-  text-align: center;
-  font-size: 13px;
-  color: rgba(0,0,0,0.35);
-  margin: 8px 0;
+/* ===== FULLSCREEN HIDDEN BUTTON ===== */
+#fsBtn {
+  position: fixed;
+  bottom: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+  opacity: 0.02; /* extremely hidden */
+  z-index: 999;
 }
 
+/* ===== DISPLAY LAYOUT ===== */
+.displayRoot {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* LEFT: MENU */
+.menuPane {
+  width: 50%;
+  height: 100%;
+  background: white;
+}
+
+/* RIGHT: CONTENT */
+.rightPane {
+  width: 50%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* SMALLO */
+.smalloPane {
+  height: 50%;
+  position: relative;
+}
+
+/* PRODUCT PREVIEW */
+.previewPane {
+  height: 50%;
+  background: #f3f3f3;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.previewPane img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+}
+
+/* ===== SMALLO STAGE ===== */
 .stage {
   position: relative;
-  width: 80%;
-  height: 60vh;
-  margin: auto;
+  width: 100%;
+  height: 100%;
 }
 
 video {
@@ -37,61 +83,14 @@ video {
   height: 100%;
   object-fit: contain;
 }
-
-/* ===== CONTROL ===== */
-.controls {
-  padding: 16px;
-}
-
-.section {
-  margin-bottom: 20px;
-}
-
-.section h3 {
-  margin: 8px 0;
-  font-size: 15px;
-  color: #555;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-button {
-  aspect-ratio: 1 / 1;
-  font-size: 14px;
-  border-radius: 14px;
-  border: none;
-  background: #FFD166;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ===== ENTRANCE ===== */
-.entrance {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 20px;
-  padding: 20px;
-}
-
-.entrance button {
-  aspect-ratio: unset;
-  padding: 18px;
-  font-size: 18px;
-}
 </style>
 </head>
 
 <body>
+
+<!-- hidden fullscreen trigger -->
+<div id="fsBtn" onclick="goFullscreen()"></div>
+
 <div id="app"></div>
 
 <script>
@@ -107,36 +106,73 @@ const app = document.getElementById("app");
 const PATHS = {
   idle: "idle/",
   random: "random-actions/",
-  special: "special-actions/"
+  special: "special-actions/",
+  products: "product-previews/"
 };
 
+/* ===== FULLSCREEN ===== */
+function goFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
+/* ===== PRODUCT PREVIEW ===== */
+const productImages = [
+  "product1.jpg",
+  "product2.jpg",
+  "product3.jpg"
+];
+
+let productIndex = 0;
+function startProductCarousel(imgEl) {
+  imgEl.src = PATHS.products + productImages[0];
+  setInterval(() => {
+    productIndex = (productIndex + 1) % productImages.length;
+    imgEl.src = PATHS.products + productImages[productIndex];
+  }, 4000);
+}
+
+/* ===== RENDER ===== */
 function render() {
   const mode = location.hash.replace("#", "");
   app.innerHTML = "";
 
-  /* ========= ENTRANCE ========= */
-  if (!mode) {
-    app.innerHTML = `
-      <div class="entrance">
-        <button onclick="location.hash='control'">Control Page</button>
-        <button onclick="location.hash='display'">Display Page</button>
-      </div>
-    `;
-  }
-
-  /* ========= DISPLAY ========= */
   if (mode === "display") {
     app.innerHTML = `
-      <div class="statusText" id="status">Idle</div>
-      <div class="stage">
-        <video id="idle" muted playsinline></video>
-        <video id="action" muted playsinline></video>
+      <div class="displayRoot">
+        <!-- MENU -->
+        <div class="menuPane">
+          <!-- Replace src with your Canva embed -->
+          <iframe
+            src="https://www.canva.com/"
+            style="border:none;width:100%;height:100%;"
+            allowfullscreen>
+          </iframe>
+        </div>
+
+        <!-- RIGHT SIDE -->
+        <div class="rightPane">
+          <div class="smalloPane">
+            <div class="stage">
+              <video id="idle" muted playsinline></video>
+              <video id="action" muted playsinline></video>
+            </div>
+          </div>
+
+          <div class="previewPane">
+            <img id="previewImg" alt="Product Preview">
+          </div>
+        </div>
       </div>
     `;
 
+    /* ===== PRODUCT CAROUSEL START ===== */
+    startProductCarousel(document.getElementById("previewImg"));
+
+    /* ===== SMALLO ANIMATION SYSTEM ===== */
     const idle = document.getElementById("idle");
     const action = document.getElementById("action");
-    const status = document.getElementById("status");
 
     idle.src = PATHS.idle + "idle.mp4";
     idle.loop = false;
@@ -151,112 +187,59 @@ function render() {
       return PATHS.random;
     }
 
-    function queueAction(name, type) {
-      if (busy) return;
-      queued = { name, type };
-      status.textContent = "Queued: " + name;
-    }
-
-    function playQueuedAtIdleBoundary() {
+    function playQueued() {
       if (!queued || busy) return;
+      busy = true;
 
       const { name, type } = queued;
       queued = null;
-      busy = true;
 
       const src = getPath(name, type) + name + ".mp4";
 
       fetch(src, { method: "HEAD" }).then(res => {
         if (!res.ok) {
-          status.textContent = "wala pang animation to, playing idle animation";
           busy = false;
           return;
         }
 
-        // preload action underneath
         action.src = src;
         action.load();
         action.pause();
         action.currentTime = 0;
 
         action.onloadeddata = () => {
-          // swap exactly at idle loop boundary
           idle.pause();
           idle.currentTime = 0;
-
           action.style.zIndex = 2;
           idle.style.zIndex = 1;
-
-          status.textContent = "Playing: " + name;
           action.play();
         };
 
         action.onended = () => {
-          // bring idle back, already aligned at frame 0
           action.style.zIndex = 0;
           action.src = "";
-
           idle.play();
-          status.textContent = "Idle";
           busy = false;
         };
       });
     }
 
-    // idle segmentation
     idle.onended = () => {
-      playQueuedAtIdleBoundary();
+      playQueued();
       if (!busy) {
         idle.currentTime = 0;
         idle.play();
       }
     };
 
-    // Firebase listener
     actionRef.on("value", snap => {
       const val = snap.val();
       if (!val) return;
-
-      queueAction(
-        val.name,
-        ["hello","thank"].includes(val.name) ? "special" : "random"
-      );
+      queued = {
+        name: val.name,
+        type: ["hello","thank"].includes(val.name) ? "special" : "random"
+      };
     });
-  }
-
-  /* ========= CONTROL ========= */
-  if (mode === "control") {
-    app.innerHTML = `
-      <div class="controls">
-        <div class="section">
-          <h3>Special Actions</h3>
-          <div class="grid">
-            <button onclick="send('hello')">Hello</button>
-            <button onclick="send('thank')">Thank</button>
-          </div>
-        </div>
-
-        <div class="section">
-          <h3>Random Actions</h3>
-          <div class="grid">
-            <button onclick="send('smile')">Smile</button>
-            <button onclick="send('happy')">Happy</button>
-            <button onclick="send('confused')">Confused</button>
-            <button onclick="send('surprised')">Surprised</button>
-            <button onclick="send('look')">Look</button>
-            <button onclick="send('sigh')">Sigh</button>
-            <button onclick="send('blink')">Blink</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    window.send = name => {
-      actionRef.set({
-        name,
-        time: Date.now()
-      });
-    };
   }
 }
 
