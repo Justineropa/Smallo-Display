@@ -233,14 +233,27 @@ function maybeBlink(){
 setInterval(maybeBlink, 8000 + Math.floor(Math.random()*3000));
 
 /* ================== Products carousel ================== */
-const productImgs = ["products/product1.jpg","products/product2.jpg","products/product3.jpg"];
+const productImgs = [
+  "product-previews/1.png",
+  "product-previews/2.png",
+  "product-previews/3.png",
+  "product-previews/4.png",
+  "product-previews/5.png"
+];
+
 let pIdx = 0;
 const productImgEl = document.getElementById("productImg");
-setInterval(()=>{
-  pIdx = (pIdx + 1) % productImgs.length;
+
+setInterval(() => {
   productImgEl.style.opacity = 0;
-  setTimeout(()=>{ productImgEl.src = productImgs[pIdx]; productImgEl.style.opacity = 1; }, 280);
+
+  setTimeout(() => {
+    pIdx = (pIdx + 1) % productImgs.length;
+    productImgEl.src = productImgs[pIdx];
+    productImgEl.style.opacity = 1;
+  }, 500); // matches CSS fade duration
 }, 4000);
+
 
 /* ================== Fullscreen ================== */
 fsBtn.addEventListener("click", () => {
