@@ -1,178 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Smallo Display</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smallo Booth</title>
 
 <style>
-html, body {
+body {
   margin: 0;
-  padding: 0;
-  height: 100%;
-  background: #fff7f0;
-  font-family: Arial, sans-serif;
-  overflow: hidden;
-}
-
-/* ---------- LAYOUT ---------- */
-.main {
-  display: grid;
-  grid-template-columns: 50% 50%;
   height: 100vh;
-}
-
-/* LEFT: CANVA MENU */
-.menu {
-  padding: 12px;
-  overflow: hidden;
-}
-
-/* RIGHT SIDE SPLIT */
-.right {
-  display: grid;
-  grid-template-rows: 60% 40%;
-}
-
-/* ---------- SMALLO ---------- */
-.smallo-area {
-  position: relative;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: #ffffff;
+  gap: 16px;
+  font-family: Arial, sans-serif;
+  background: #fff7f0;
 }
-
-video {
-  position: absolute;
-  width: 80%;
-  height: auto;
-  object-fit: contain;
-}
-
-/* ---------- PRODUCT PREVIEW ---------- */
-.products {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #f3f3f3;
-}
-
-.products img {
-  max-width: 90%;
-  max-height: 90%;
+button {
+  padding: 16px 32px;
+  font-size: 16px;
   border-radius: 12px;
-  transition: opacity 0.5s ease;
-}
-
-/* ---------- FULLSCREEN BUTTON ---------- */
-#fullscreenBtn {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  padding: 6px 10px;
-  font-size: 12px;
-  background: rgba(0, 0, 0, 0.35);
-  color: white;
-  border-radius: 8px;
+  border: none;
+  background: #ffd166;
   cursor: pointer;
-  z-index: 999;
-  user-select: none;
-}
-
-#fullscreenBtn:active {
-  transform: scale(0.95);
 }
 </style>
 </head>
 
 <body>
-
-<!-- FULLSCREEN BUTTON -->
-<div id="fullscreenBtn">⛶ Fullscreen</div>
-
-<div class="main">
-
-  <!-- LEFT: CANVA MENU -->
-  <div class="menu">
-
-    <!-- CANVA EMBED -->
-    <div style="position: relative; width: 100%; height: 0; padding-top: 125.0000%;
- padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
- border-radius: 8px; will-change: transform;">
-  <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0;margin: 0;"
-    src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed" allowfullscreen="allowfullscreen" allow="fullscreen">
-  </iframe>
-</div>
-<a href="https:&#x2F;&#x2F;www.canva.com&#x2F;design&#x2F;DAHA6CJLYFc&#x2F;pb-pX-AMcbC9I1zxRAJEAg&#x2F;view?utm_content=DAHA6CJLYFc&amp;utm_campaign=designshare&amp;utm_medium=embeds&amp;utm_source=link" target="_blank" rel="noopener">Copy of Green and White Retro Matcha Instagram Post</a> by Justine Ramos
-
-  <!-- RIGHT SIDE -->
-  <div class="right">
-
-    <!-- SMALLO -->
-    <div class="smallo-area">
-      <video id="idleVideo" src="idle/idle.mp4" autoplay loop muted playsinline></video>
-      <video id="actionVideo" muted playsinline></video>
-    </div>
-
-    <!-- PRODUCT PREVIEW -->
-    <div class="products">
-      <img id="productImg" src="products/product1.jpg" />
-    </div>
-
-  </div>
-</div>
-
-<script>
-/* ---------- FULLSCREEN ---------- */
-document.getElementById("fullscreenBtn").addEventListener("click", () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen().catch(() => {});
-  } else {
-    document.exitFullscreen();
-  }
-});
-
-/* ---------- PRODUCT CAROUSEL ---------- */
-const productImages = [
-  "products/product1.jpg",
-  "products/product2.jpg",
-  "products/product3.jpg"
-];
-
-let productIndex = 0;
-const productImg = document.getElementById("productImg");
-
-setInterval(() => {
-  productIndex = (productIndex + 1) % productImages.length;
-  productImg.style.opacity = 0;
-  setTimeout(() => {
-    productImg.src = productImages[productIndex];
-    productImg.style.opacity = 1;
-  }, 300);
-}, 4000);
-
-/* ---------- SMALLO DISPLAY LOGIC (READY FOR FIREBASE) ---------- */
-const idleVideo = document.getElementById("idleVideo");
-const actionVideo = document.getElementById("actionVideo");
-
-function playAction(path) {
-  actionVideo.src = path;
-  actionVideo.load();
-
-  actionVideo.onloadeddata = () => {
-    actionVideo.play();
-    idleVideo.pause();
-
-    actionVideo.onended = () => {
-      actionVideo.removeAttribute("src");
-      actionVideo.load();
-      idleVideo.play();
-    };
-  };
-}
-</script>
-
+  <h2>Smallo Booth</h2>
+  <button onclick="location.href='display.html'">Open Display</button>
+  <button onclick="location.href='control.html'">Open Control</button>
 </body>
 </html>
- 
