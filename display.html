@@ -16,7 +16,7 @@
       overflow: hidden;
     }
 
-    /* LEFT: MENU */
+    /* LEFT */
     #menu {
       width: 50%;
       background: #6b8e6e;
@@ -25,88 +25,96 @@
       overflow: auto;
     }
 
-    /* RIGHT SIDE */
+    /* RIGHT */
     #right {
       width: 50%;
       display: flex;
       flex-direction: column;
     }
 
-    /* Smallo corner */
+    /* SMALLO CORNER */
     #smallo {
       height: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: #FFF5E1;
+      background: #fff5e1;
       position: relative;
+      overflow: hidden;
     }
 
     #smallo video {
-      max-height: 100%;
-      max-width: 100%;
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
-    /* Underlay video for flicker-free transitions */
-    #smallo video#underlay {
-      z-index: 0;
-    }
-    #smallo video#main {
+    #idleVideo {
       z-index: 1;
     }
 
-    /* Product preview */
+    #actionVideo {
+      z-index: 2;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms linear;
+    }
+
+    /* PRODUCTS */
     #products {
       height: 50%;
+      background: #222;
       display: flex;
       justify-content: center;
       align-items: center;
-      background: #222;
     }
 
     #products img {
-      max-height: 100%;
       max-width: 100%;
+      max-height: 100%;
     }
 
-    /* Hidden fullscreen button */
+    /* FULLSCREEN */
     #fs {
       position: fixed;
-      bottom: 5px;
-      right: 5px;
-      opacity: 0.1;
-      width: 40px;
-      height: 40px;
-      z-index: 10;
+      bottom: 6px;
+      right: 6px;
+      width: 44px;
+      height: 44px;
+      opacity: 0.12;
+      z-index: 20;
     }
   </style>
 </head>
 <body>
 
-  <!-- Left: Canva menu -->
+  <!-- MENU -->
   <div id="menu">
     <div style="position: relative; width: 100%; height: 0; padding-top: 125.0000%;
      padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
      border-radius: 8px; will-change: transform;">
       <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0;margin: 0;"
-        src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed" allowfullscreen="allowfullscreen" allow="fullscreen">
+        src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed"
+        allowfullscreen="allowfullscreen" allow="fullscreen">
       </iframe>
     </div>
-    <a href="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?utm_content=DAHA6CJLYFc&utm_campaign=designshare&utm_medium=embeds&utm_source=link" target="_blank" rel="noopener">
+    <a href="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?utm_content=DAHA6CJLYFc&utm_campaign=designshare&utm_medium=embeds&utm_source=link"
+       target="_blank" rel="noopener">
+      Copy of Green and White Retro Matcha Instagram Post
     </a>
   </div>
 
-  <!-- Right: Smallo + product preview -->
+  <!-- DISPLAY -->
   <div id="right">
     <div id="smallo">
-      <!-- Preloaded underlay video -->
-      <video id="underlay" autoplay muted loop src="videos/idle.mp4"></video>
-      <!-- Main video on top -->
-      <video id="main" autoplay muted></video>
+      <!-- IDLE NEVER STOPS -->
+      <video id="idleVideo" autoplay muted loop preload="auto">
+        <source src="videos/idle.mp4" type="video/mp4">
+      </video>
+
+      <!-- ACTION OVERLAY -->
+      <video id="actionVideo" muted preload="auto"></video>
     </div>
+
     <div id="products">
       <img id="productImg" src="products/product1.jpg">
     </div>
@@ -122,84 +130,66 @@
       projectId: "smallo-live",
       storageBucket: "smallo-live.firebasestorage.app",
       messagingSenderId: "1017470725882",
-      appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-      measurementId: "G-QTZTK6G2XL"
+      appId: "1:1017470725882:web:929ee126247fcbb51e6343"
     };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const underlay = document.getElementById("underlay");
-    const main = document.getElementById("main");
+    const actionVideo = document.getElementById("actionVideo");
+    let busy = false;
 
-    let isPlayingAction = false;
-    let currentAction = "idle";
+    function playAction(name) {
+      if (busy) return;
+      busy = true;
 
-    function playIdle() {
-      currentAction = "idle";
-      isPlayingAction = false;
-      underlay.src = "videos/idle.mp4";
-      underlay.loop = true;
-      underlay.play();
+      actionVideo.src = `videos/${name}.mp4`;
+      actionVideo.currentTime = 0;
 
-      main.src = "";
+      actionVideo.onloadeddata = () => {
+        actionVideo.style.opacity = 1;
+        actionVideo.play();
+      };
+
+      actionVideo.onended = () => {
+        actionVideo.style.opacity = 0;
+        busy = false;
+      };
     }
 
-    function playAction(action) {
-      if (isPlayingAction) return;
-
-      isPlayingAction = true;
-      currentAction = action;
-
-      main.src = `videos/${action}.mp4`;
-      main.loop = false;
-      main.currentTime = 0;
-      main.style.zIndex = 2;
-
-      main.play().catch(() => {
-        // fallback if video missing
-        playIdle();
-      });
-    }
-
-    // When action ends, return to idle
-    main.addEventListener("ended", () => {
-      playIdle();
-    });
-
-    // Firebase listener
     db.ref("action").on("value", snap => {
-      const action = snap.val();
-      if (!action || action === "idle") return;
-      playAction(action);
+      const val = snap.val();
+      if (!val || val === "idle") return;
+      playAction(val);
     });
 
-    // Random blink during idle (45% chance)
-    function randomBlink() {
-      if (currentAction !== "idle" || isPlayingAction) return;
-      if (Math.random() < 0.45) {
+    /* RANDOM BLINK */
+    setInterval(() => {
+      if (!busy && Math.random() < 0.45) {
         playAction("blink");
       }
-    }
-    setInterval(randomBlink, Math.random() * 4000 + 8000);
+    }, 9000);
 
-    playIdle();
-
-    // Hidden fullscreen
+    /* FULLSCREEN */
     document.getElementById("fs").onclick = () => {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
       }
     };
 
-    // Product carousel
-    const images = ["products/product1.jpg","products/product2.jpg","products/product3.jpg"];
+    /* PRODUCT ROTATION */
+    const imgs = [
+      "products/product1.jpg",
+      "products/product2.jpg",
+      "products/product3.jpg"
+    ];
     let i = 0;
     setInterval(() => {
-      i = (i + 1) % images.length;
-      document.getElementById("productImg").src = images[i];
+      i = (i + 1) % imgs.length;
+      productImg.src = imgs[i];
     }, 3000);
   </script>
 
 </body>
 </html>
+#85c9e5
