@@ -9,42 +9,90 @@
 
   <style>
     body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      gap: 15px;
-      padding: 20px;
+      font-family: system-ui, sans-serif;
+      background:#f5f5f5;
+      padding:20px;
     }
+
+    h2 { margin-top:30px; }
+
+    .section {
+      background:white;
+      padding:15px;
+      border-radius:12px;
+      margin-bottom:20px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    }
+
     button {
-      padding: 15px 25px;
-      font-size: 16px;
+      padding:12px 18px;
+      margin:6px;
+      font-size:15px;
+      border:none;
+      border-radius:10px;
+      background:#6b8e6e;
+      color:white;
+    }
+
+    #queue {
+      font-size:14px;
+      color:#333;
+      margin-top:10px;
     }
   </style>
 </head>
 <body>
 
-  <button onclick="send('hello')">Hello</button>
-  <button onclick="send('smile')">Smile</button>
-  <button onclick="send('thank')">Thank</button>
+<h1>Smallo Control</h1>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-      authDomain: "smallo-live.firebaseapp.com",
-      databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "smallo-live",
-      storageBucket: "smallo-live.firebasestorage.app",
-      messagingSenderId: "1017470725882",
-      appId: "1:1017470725882:web:929ee126247fcbb51e6343"
-    };
+<div class="section">
+  <h2>Specific Actions</h2>
+  <button onclick="enqueue('hello')">Hello</button>
+  <button onclick="enqueue('hi')">Hi</button>
+  <button onclick="enqueue('thank')">Thank</button>
+</div>
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+<div class="section">
+  <h2>Force Random Action</h2>
+  <button onclick="enqueue('smile')">Smile</button>
+  <button onclick="enqueue('look_around')">Look Around</button>
+  <button onclick="enqueue('sleep')">Sleep</button>
+</div>
 
-    function send(action) {
-      db.ref("action").set(action);
-      setTimeout(() => db.ref("action").set("idle"), 3000);
-    }
-  </script>
+<div class="section">
+  <h2>Queue</h2>
+  <div id="queue">Loading…</div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+  authDomain: "smallo-live.firebaseapp.com",
+  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smallo-live",
+  storageBucket: "smallo-live.firebasestorage.app",
+  messagingSenderId: "1017470725882",
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function enqueue(action) {
+  db.ref("queue").once("value", snap => {
+    const q = snap.val() || [];
+    q.push(action);
+    db.ref("queue").set(q);
+  });
+}
+
+db.ref("queue").on("value", snap => {
+  const q = snap.val() || [];
+  document.getElementById("queue").innerText =
+    q.length ? q.join(" → ") : "Idle";
+});
+</script>
 
 </body>
 </html>
+ 
