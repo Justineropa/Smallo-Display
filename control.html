@@ -1,72 +1,60 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Smallo Control</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smallo Control</title>
 
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #111;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-      gap: 15px;
-    }
-
-    button {
-      width: 200px;
-      padding: 15px;
-      font-size: 16px;
-      border: none;
-      border-radius: 12px;
-      background: #00bcd4;
-      color: black;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:active {
-      transform: scale(0.96);
-    }
-  </style>
+<style>
+body{font-family:sans-serif;padding:20px;background:#222;color:#fff}
+button{
+  padding:12px 18px;
+  margin:8px;
+  font-size:16px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+.section{margin-bottom:25px}
+</style>
 </head>
 <body>
 
-<h2>Smallo Controls</h2>
+<h2>Specific Actions</h2>
+<div class="section">
+<button onclick="sendAction('hello')">Hello</button>
+<button onclick="sendAction('hi')">Hi</button>
+<button onclick="sendAction('thank')">Thank</button>
+</div>
 
-<button onclick="sendAction('wave')">Wave</button>
-<button onclick="sendAction('jump')">Jump</button>
-<button onclick="sendAction('look')">Look Around</button>
-<button onclick="sendAction('spin')">Spin</button>
+<h2>Force Random Action</h2>
+<div class="section">
+<button onclick="sendAction('smile')">Smile</button>
+<button onclick="sendAction('look_around')">Look Around</button>
+<button onclick="sendAction('sleep')">Sleep</button>
+</div>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-    authDomain: "smallo-live.firebaseapp.com",
-    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "smallo-live",
-    storageBucket: "smallo-live.firebasestorage.app",
-    messagingSenderId: "1017470725882",
-    appId: "1:1017470725882:web:929ee126247fcbb51e6343"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+  authDomain: "smallo-live.firebaseapp.com",
+  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smallo-live",
+  storageBucket: "smallo-live.firebasestorage.app",
+  messagingSenderId: "1017470725882",
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+  measurementId: "G-QTZTK6G2XL"
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  function sendAction(actionName) {
-    db.ref("actionQueue").push({
-      name: actionName,
-      timestamp: Date.now()
-    });
-  }
+function sendAction(action){
+  db.ref("actionQueue").push(action);
+}
 </script>
 
 </body>
