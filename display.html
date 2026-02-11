@@ -116,66 +116,60 @@ queueRef.on("child_removed", snap => {
 function processQueue(){
   if (processing) return;
   if (!localQueue.length) return;
+
   const item = localQueue.shift();
   processing = true;
 
   const actionName = item.name;
-  const folder = "videos/";
-  const src = `${folder}${actionName}.mp4`;
+  const src = `videos/${actionName}.mp4`;
 
-  fetch(src, { method: "HEAD" }).then(res => {
-    if (!res.ok) {
-      queueRef.child(item.key).remove().catch(()=>{});
-      processing = false;
-      processQueue();
-      return;
+  nowPlayingRef.set({
+    name: actionName,
+    ts: firebase.database.ServerValue.TIMESTAMP
+  }).catch(()=>{});
+
+  actionVideo.pause();
+  actionVideo.removeAttribute("src");
+  actionVideo.src = src;
+  actionVideo.load();
+  actionVideo.currentTime = 0;
+
+  actionVideo.onloadeddata = () => {
+
+    // Fade in action over idle
+    actionVideo.style.opacity = 1;
+
+    const playPromise = actionVideo.play();
+    if (playPromise && playPromise.catch) {
+      playPromise.catch(()=>{});
     }
 
-    nowPlayingRef.set({ name: actionName, ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
-
-    actionVideo.pause();
-    actionVideo.removeAttribute("src");
-    actionVideo.src = src;
-    actionVideo.load();
-    actionVideo.currentTime = 0;
-
-    const onLoaded = () => {
-      const showAndPlay = () => {
-        actionVideo.style.opacity = 1;
-        const playPromise = actionVideo.play();
-        if (playPromise && playPromise.catch) { playPromise.catch(()=>{}); }
-
-        queueRef.child(item.key).remove().catch(() => {});
-
-        actionVideo.onended = () => {
-          actionVideo.onended = null;
-          actionVideo.style.opacity = 0;
-          nowPlayingRef.set({ name: "idle", ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
-          setTimeout(()=>{
-            actionVideo.pause();
-            actionVideo.removeAttribute("src");
-            try{actionVideo.load();}catch(e){}
-          }, 120);
-
-          processing = false;
-          setTimeout(processQueue, 40);
-        };
-      };
-
-      if (typeof actionVideo.requestVideoFrameCallback === "function") {
-        actionVideo.requestVideoFrameCallback(()=>{ showAndPlay(); });
-      } else {
-        setTimeout(showAndPlay, 60);
-      }
-    };
-
-    actionVideo.onloadeddata = onLoaded;
-    actionVideo.onerror = () => { queueRef.child(item.key).remove().catch(()=>{}); processing=false; processQueue(); };
-  }).catch(err=>{
     queueRef.child(item.key).remove().catch(()=>{});
-    processing=false;
+  };
+
+  actionVideo.onended = () => {
+    actionVideo.style.opacity = 0;
+
+    nowPlayingRef.set({
+      name: "idle",
+      ts: firebase.database.ServerValue.TIMESTAMP
+    }).catch(()=>{});
+
+    setTimeout(()=>{
+      actionVideo.pause();
+      actionVideo.removeAttribute("src");
+      try { actionVideo.load(); } catch(e){}
+    }, 120);
+
+    processing = false;
+    setTimeout(processQueue, 40);
+  };
+
+  actionVideo.onerror = () => {
+    queueRef.child(item.key).remove().catch(()=>{});
+    processing = false;
     processQueue();
-  });
+  };
 }
 
 /* ================== Random actions & blink ================== */
