@@ -23,7 +23,7 @@
     #actionVideo { z-index:2; opacity:0; transition: opacity 140ms linear; pointer-events:none; }
 
     /* products */
-    #products { display:flex; align-items:center; justify-content:center; background:#222; }
+    #products { display:flex; align-items:center; justify-content:center; background:#583621; }
     #products img { max-width:90%; max-height:90%; border-radius:10px; transition:opacity .35s; }
 
     /* fullscreen button (visible enough) */
@@ -102,11 +102,28 @@ let processing = false;
 function dbg(msg){ debug.style.display='block'; debug.textContent = msg; }
 
 /* queue listeners */
-queueRef.on("child_added", snap => {
-  const data = snap.val();
-  localQueue.push({ key: snap.key, name: data.name, type: data.type || "random" });
-  processQueue();
+db.ref(".info/connected").on("value", function(snap) {
+  if (snap.val() === true) {
+
+    queueRef.off(); // safety: remove old listeners
+
+    queueRef.on("child_added", function(snap) {
+
+      const data = snap.val();
+      if (!data || !data.name) return;
+
+      localQueue.push({
+        key: snap.key,
+        name: data.name,
+        type: data.type || "manual"
+      });
+
+      processQueue();
+    });
+
+  }
 });
+
 
 queueRef.on("child_removed", snap => {
   localQueue = localQueue.filter(it => it.key !== snap.key);
