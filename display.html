@@ -13,6 +13,7 @@
       margin: 0;
       overflow: hidden;
       font-family: Arial, sans-serif;
+      background: black;
     }
 
     #container {
@@ -21,7 +22,7 @@
       height: 100vh;
     }
 
-    /* LEFT SIDE (Smallo) */
+    /* LEFT (Smallo) */
     #left {
       flex: 2;
       background: #fff5e1;
@@ -37,30 +38,30 @@
       transition: opacity 0.25s linear;
     }
 
-    #idleVideo {
-      z-index: 1;
-      opacity: 1;
-    }
+    #idleVideo { z-index: 1; opacity: 1; }
+    #actionVideo { z-index: 2; opacity: 0; }
 
-    #actionVideo {
-      z-index: 2;
-      opacity: 0;
-    }
-
-    /* RIGHT SIDE */
+    /* RIGHT */
     #right {
       flex: 3;
       position: relative;
       overflow: hidden;
+      background: white;
     }
 
-    /* Carousel */
-    .carousel {
-      position: absolute;
-      top: 0;
-      left: 0;
+    /* Canva embed wrapper (exact structure preserved) */
+    .canva-wrapper {
+      position: relative;
       width: 100%;
       height: 100%;
+    }
+
+    /* Carousel overlay */
+    .carousel {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
     }
 
     .carousel img {
@@ -76,7 +77,7 @@
       opacity: 1;
     }
 
-    /* Fullscreen Button */
+    /* Fullscreen button */
     #fsBtn {
       position: fixed;
       bottom: 20px;
@@ -88,7 +89,7 @@
       background: rgba(0,0,0,0.6);
       color: white;
       font-size: 22px;
-      z-index: 99999999;
+      z-index: 999999;
       cursor: pointer;
     }
   </style>
@@ -107,24 +108,28 @@
   <!-- RIGHT -->
   <div id="right">
 
-    <!-- CAROUSEL -->
-    <div class="carousel">
-      <img src="1.png" class="active">
-      <img src="2.png">
-      <img src="3.png">
-      <img src="4.png">
-      <img src="5.png">
+    <div class="canva-wrapper">
+
+      <!-- CAROUSEL -->
+      <div class="carousel">
+        <img src="product-previews/1.png" class="active">
+        <img src="product-previews/2.png">
+        <img src="product-previews/3.png">
+        <img src="product-previews/4.png">
+        <img src="product-previews/5.png">
+      </div>
+
+      <!-- CANVA (UNCHANGED CONTENT) -->
+      <div style="position: relative; width: 100%; height: 0; padding-top: 125%;
+       overflow: hidden;">
+        <iframe loading="lazy"
+          style="position:absolute;width:100%;height:100%;top:0;left:0;border:none;"
+          src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed"
+          allowfullscreen>
+        </iframe>
+      </div>
+
     </div>
-
-    <!-- CANVA EMBED (UNCHANGED) -->
-    <div style="position: relative; width: 100%; height: 0; padding-top: 125.0000%;
-     padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
-     border-radius: 8px; will-change: transform;">
-      <iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0;margin: 0;"
-        src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed" allowfullscreen="allowfullscreen" allow="fullscreen">
-      </iframe>
-
-    </a>
 
   </div>
 
@@ -133,7 +138,6 @@
 <button id="fsBtn">⛶</button>
 
 <script>
-  // Firebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
     authDomain: "smallo-live.firebaseapp.com",
@@ -141,40 +145,36 @@
     projectId: "smallo-live",
     storageBucket: "smallo-live.firebasestorage.app",
     messagingSenderId: "1017470725882",
-    appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-    measurementId: "G-QTZTK6G2XL"
+    appId: "1:1017470725882:web:929ee126247fcbb51e6343"
   };
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  /* ===== VIDEO UNDERLAY SYSTEM ===== */
-
+  /* Video underlay system */
   const idleVideo = document.getElementById("idleVideo");
   const actionVideo = document.getElementById("actionVideo");
 
   idleVideo.src = "videos/idle.mp4";
   idleVideo.play();
 
-  let actionQueue = [];
-  let isPlayingAction = false;
+  let queue = [];
+  let playing = false;
 
-  function playAction(actionName) {
-    actionQueue.push(actionName);
-    processQueue();
+  function playAction(name) {
+    queue.push(name);
+    process();
   }
 
-  function processQueue() {
-    if (isPlayingAction || actionQueue.length === 0) return;
+  function process() {
+    if (playing || queue.length === 0) return;
+    playing = true;
 
-    isPlayingAction = true;
-    const nextAction = actionQueue.shift();
-
-    actionVideo.src = "videos/" + nextAction + ".mp4";
+    const next = queue.shift();
+    actionVideo.src = "videos/" + next + ".mp4";
     actionVideo.load();
 
     actionVideo.onloadeddata = () => {
-      actionVideo.currentTime = 0;
       actionVideo.style.opacity = 1;
       idleVideo.style.opacity = 0;
       actionVideo.play();
@@ -183,42 +183,35 @@
     actionVideo.onended = () => {
       actionVideo.style.opacity = 0;
       idleVideo.style.opacity = 1;
-      isPlayingAction = false;
-      processQueue();
+      playing = false;
+      process();
     };
   }
 
-  /* ===== FIREBASE LISTENER ===== */
-
-  db.ref("action").on("value", function(snapshot) {
-    const data = snapshot.val();
+  db.ref("action").on("value", snap => {
+    const data = snap.val();
     if (!data) return;
     playAction(data.name);
   });
 
-  /* ===== CAROUSEL ===== */
-
-  const images = document.querySelectorAll(".carousel img");
-  let currentIndex = 0;
+  /* Carousel */
+  const imgs = document.querySelectorAll(".carousel img");
+  let i = 0;
 
   setInterval(() => {
-    images[currentIndex].classList.remove("active");
-    currentIndex = (currentIndex + 1) % images.length;
-    images[currentIndex].classList.add("active");
+    imgs[i].classList.remove("active");
+    i = (i + 1) % imgs.length;
+    imgs[i].classList.add("active");
   }, 4000);
 
-  /* ===== FULLSCREEN ===== */
-
-  const fsBtn = document.getElementById("fsBtn");
-
-  fsBtn.addEventListener("click", function() {
+  /* Fullscreen */
+  document.getElementById("fsBtn").onclick = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen();
     } else {
       document.exitFullscreen();
     }
-  });
-
+  };
 </script>
 
 </body>
