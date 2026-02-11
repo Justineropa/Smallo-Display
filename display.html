@@ -130,8 +130,6 @@ function processQueue(){
 
   actionVideo.pause();
   actionVideo.removeAttribute("src");
-  actionVideo.src = src;
-  actionVideo.load();
   actionVideo.currentTime = 0;
 
   actionVideo.onloadeddata = () => {
@@ -148,22 +146,25 @@ function processQueue(){
   };
 
   actionVideo.onended = () => {
-    actionVideo.style.opacity = 0;
 
-    nowPlayingRef.set({
-      name: "idle",
-      ts: firebase.database.ServerValue.TIMESTAMP
-    }).catch(()=>{});
+  // Hide overlay
+  actionVideo.style.opacity = 0;
 
-    setTimeout(()=>{
-      actionVideo.pause();
-      actionVideo.removeAttribute("src");
-      try { actionVideo.load(); } catch(e){}
-    }, 120);
+  // Tell control page we're back to idle
+  nowPlayingRef.set({
+    name: "idle",
+    ts: firebase.database.ServerValue.TIMESTAMP
+  }).catch(()=>{});
 
-    processing = false;
-    setTimeout(processQueue, 40);
-  };
+  // Reset video safely
+  actionVideo.pause();
+  actionVideo.currentTime = 0;
+
+  // Allow next item
+  processing = false;
+
+  setTimeout(processQueue, 50);
+};
 
   actionVideo.onerror = () => {
     queueRef.child(item.key).remove().catch(()=>{});
