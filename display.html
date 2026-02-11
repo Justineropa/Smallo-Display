@@ -149,6 +149,10 @@ function processQueue(){
   actionVideo.removeAttribute("src");
   actionVideo.currentTime = 0;
 
+  actionVideo.src = src;
+actionVideo.load();
+
+
   actionVideo.onloadeddata = () => {
 
     // Fade in action over idle
