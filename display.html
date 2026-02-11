@@ -27,7 +27,7 @@
     #products img { max-width:90%; max-height:90%; border-radius:10px; transition:opacity .35s; }
 
     /* fullscreen button (visible enough) */
-    #fsBtn { position:fixed; top:10px; right:10px; padding:6px 10px; background:rgba(0,0,0,0.35); color:#fff; border-radius:8px; z-index:999; cursor:pointer; font-size:12px; }
+    #fsBtn { position:fixed; top:14px; right:14px; padding:8px 14px; background:rgba(0,0,0,0.6); color:#fff; border-radius:10px; z-index:9999; cursor:pointer; font-size:14px; }
 
     /* small status (hidden) */
     #debug { position:fixed; left:10px; bottom:10px; color:#222; background:rgba(255,255,255,0.75); padding:6px 8px; border-radius:6px; font-size:12px; }
@@ -62,7 +62,7 @@
     </div>
 
     <div id="products">
-      <img id="productImg" src="products/product1.jpg" alt="product preview">
+      <img id="productImg" src="product-previews/1.png" alt="product preview">
     </div>
   </div>
 </div>
@@ -71,7 +71,7 @@
 <div id="debug" style="display:none"></div>
 
 <script>
-/* ================== Firebase config (use the config you supplied) ================== */
+/* ================== Firebase config ================== */
 const firebaseConfig = {
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   authDomain: "smallo-live.firebaseapp.com",
@@ -91,27 +91,24 @@ const actionVideo = document.getElementById("actionVideo");
 const fsBtn = document.getElementById("fsBtn");
 const debug = document.getElementById("debug");
 
-/* ================== Queue setup (push-list) ================== */
+/* ================== Queue setup ================== */
 const queueRef = db.ref("queue");
-const nowPlayingRef = db.ref("nowPlaying"); // for control pages to know state
+const nowPlayingRef = db.ref("nowPlaying");
 
-let localQueue = [];        // array of { key, name, type }
+let localQueue = [];
 let processing = false;
 
 /* helper: show debug */
 function dbg(msg){ debug.style.display='block'; debug.textContent = msg; }
 
-/* listen for new queue items (reliable) */
+/* queue listeners */
 queueRef.on("child_added", snap => {
   const data = snap.val();
   localQueue.push({ key: snap.key, name: data.name, type: data.type || "random" });
-  // Immediately attempt to process
   processQueue();
 });
 
-/* also listen for removals to keep UI consistent (not strictly needed here) */
 queueRef.on("child_removed", snap => {
-  // remove from localQueue if present (safety)
   localQueue = localQueue.filter(it => it.key !== snap.key);
 });
 
@@ -122,118 +119,81 @@ function processQueue(){
   const item = localQueue.shift();
   processing = true;
 
-  // preload and play overlay without touching idle (no pause)
   const actionName = item.name;
-  const folder = (item.name === "blink") ? "videos/" : "videos/";
+  const folder = "videos/";
   const src = `${folder}${actionName}.mp4`;
 
-  // try HEAD to detect missing file (optional)
   fetch(src, { method: "HEAD" }).then(res => {
     if (!res.ok) {
-      // remove node and bail
       queueRef.child(item.key).remove().catch(()=>{});
       processing = false;
-      processQueue(); // try next
+      processQueue();
       return;
     }
 
-    // set nowPlaying so controls can disable while playing
     nowPlayingRef.set({ name: actionName, ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
 
-    // prepare the overlay
     actionVideo.pause();
     actionVideo.removeAttribute("src");
     actionVideo.src = src;
     actionVideo.load();
     actionVideo.currentTime = 0;
 
-    // wait for a real frame before showing
     const onLoaded = () => {
-      // use requestVideoFrameCallback when available
       const showAndPlay = () => {
-        // show overlay
         actionVideo.style.opacity = 1;
-
-        // start playing (actionVideo should be ready)
         const playPromise = actionVideo.play();
-        if (playPromise && playPromise.catch) {
-          playPromise.catch(()=>{ /* autoplay policy suppressed; but muted should allow */ });
-        }
+        if (playPromise && playPromise.catch) { playPromise.catch(()=>{}); }
 
-        // remove queue node from db now that we own it (so other displays won't also play it)
-        queueRef.child(item.key).remove().catch(()=>{});
+        queueRef.child(item.key).remove().catch(() => {});
 
-        // when action ends -> hide overlay, clear nowPlaying, continue
         actionVideo.onended = () => {
           actionVideo.onended = null;
-          // fade/hide
           actionVideo.style.opacity = 0;
-
-          // clear nowPlaying
           nowPlayingRef.set({ name: "idle", ts: firebase.database.ServerValue.TIMESTAMP }).catch(()=>{});
-
-          // cleanup src after small delay (avoid showing black on some devices)
           setTimeout(()=>{
             actionVideo.pause();
             actionVideo.removeAttribute("src");
-            try { actionVideo.load(); } catch(e){}
+            try{actionVideo.load();}catch(e){}
           }, 120);
 
           processing = false;
-          // process next item if any
           setTimeout(processQueue, 40);
         };
       };
 
       if (typeof actionVideo.requestVideoFrameCallback === "function") {
-        // wait for first painted frame
-        actionVideo.requestVideoFrameCallback(() => {
-          showAndPlay();
-        });
+        actionVideo.requestVideoFrameCallback(()=>{ showAndPlay(); });
       } else {
-        // fallback: small delay after loadeddata
         setTimeout(showAndPlay, 60);
       }
     };
 
     actionVideo.onloadeddata = onLoaded;
-    actionVideo.onerror = () => {
-      // remove node and continue
-      queueRef.child(item.key).remove().catch(()=>{});
-      processing = false;
-      processQueue();
-    };
+    actionVideo.onerror = () => { queueRef.child(item.key).remove().catch(()=>{}); processing=false; processQueue(); };
   }).catch(err=>{
-    // network/permission errors: remove node and continue
     queueRef.child(item.key).remove().catch(()=>{});
-    processing = false;
+    processing=false;
     processQueue();
   });
 }
 
 /* ================== Random actions & blink ================== */
-/* Random actions: smile, look_around, sleep — ~25% chance every 9-12s */
 const randomActions = ["smile","look_around","sleep"];
-function maybeEnqueueRandom(){
-  if (processing) return;
-  if (Math.random() < 0.25) {
-    const pick = randomActions[Math.floor(Math.random()*randomActions.length)];
-    queueRef.push({ name: pick, type: "random", ts: firebase.database.ServerValue.TIMESTAMP });
-  }
-}
+function maybeEnqueueRandom(){ if (processing) return; if(Math.random()<0.25){ const pick = randomActions[Math.floor(Math.random()*randomActions.length)]; queueRef.push({ name: pick, type: "random", ts: firebase.database.ServerValue.TIMESTAMP }); } }
 setInterval(maybeEnqueueRandom, 9000 + Math.floor(Math.random()*3000));
 
-/* Blink (45% chance) — lighter, more frequent */
-function maybeBlink(){
-  if (processing) return;
-  if (Math.random() < 0.45) {
-    queueRef.push({ name: "blink", type: "blink", ts: firebase.database.ServerValue.TIMESTAMP });
-  }
-}
+function maybeBlink(){ if (processing) return; if(Math.random()<0.45){ queueRef.push({ name:"blink", type:"blink", ts: firebase.database.ServerValue.TIMESTAMP }); } }
 setInterval(maybeBlink, 8000 + Math.floor(Math.random()*3000));
 
 /* ================== Products carousel ================== */
-const productImgs = ["products/product1.jpg","products/product2.jpg","products/product3.jpg"];
+const productImgs = [
+  "product-previews/1.png",
+  "product-previews/2.png",
+  "product-previews/3.png",
+  "product-previews/4.png",
+  "product-previews/5.png"
+];
 let pIdx = 0;
 const productImgEl = document.getElementById("productImg");
 setInterval(()=>{
