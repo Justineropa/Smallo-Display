@@ -1,85 +1,137 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Smallo Control</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
   <style>
-    body {
+    html, body {
       margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f2f2f2;
     }
 
-    h2 {
-      margin-top: 0;
+    .wrapper {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .status {
+      text-align: center;
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 14px;
     }
 
     .section {
       margin-bottom: 25px;
     }
 
+    .section h2 {
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+
     button {
-      display: block;
       width: 100%;
-      padding: 12px;
-      margin: 8px 0;
+      padding: 14px;
+      margin-bottom: 10px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 16px;
+      cursor: pointer;
       background: #333;
       color: white;
-      cursor: pointer;
+      transition: background 0.2s;
     }
 
     button:hover {
       background: #555;
     }
+
+    button:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
-
 <body>
 
-<h2>Specific Actions</h2>
-<div class="section">
-  <button onclick="sendAction('hello')">Hello</button>
-  <button onclick="sendAction('hi')">Hi</button>
-  <button onclick="sendAction('thank')">Thank</button>
-</div>
+<div class="wrapper">
 
-<h2>Force Random Action</h2>
-<div class="section">
-  <button onclick="sendAction('smile')">Smile</button>
-  <button onclick="sendAction('look_around')">Look Around</button>
-  <button onclick="sendAction('sleep')">Sleep</button>
+  <h1>Smallo Control</h1>
+
+  <div class="status" id="statusBox">
+    Now Playing: idle
+  </div>
+
+  <div class="section">
+    <h2>Specific Actions</h2>
+    <button onclick="sendAction('hello')">Hello</button>
+    <button onclick="sendAction('hi')">Hi</button>
+    <button onclick="sendAction('thank')">Thank</button>
+  </div>
+
+  <div class="section">
+    <h2>Expressions</h2>
+    <button onclick="sendAction('smile')">Smile</button>
+    <button onclick="sendAction('look_around')">Look Around</button>
+    <button onclick="sendAction('sleep')">Sleep</button>
+    <button onclick="sendAction('blink')">Blink</button>
+  </div>
+
 </div>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-    authDomain: "smallo-live.firebaseapp.com",
-    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "smallo-live",
-    storageBucket: "smallo-live.firebasestorage.app",
-    messagingSenderId: "1017470725882",
-    appId: "1:1017470725882:web:929ee126247fcbb51e6343"
-  };
+/* ================== Firebase config ================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+  authDomain: "smallo-live.firebaseapp.com",
+  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smallo-live",
+  storageBucket: "smallo-live.firebasestorage.app",
+  messagingSenderId: "1017470725882",
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+  measurementId: "G-QTZTK6G2XL"
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  function sendAction(action) {
-    db.ref("action").set({
-      name: action,
-      time: Date.now()
-    });
-  }
+const queueRef = db.ref("queue");
+const nowPlayingRef = db.ref("nowPlaying");
+
+const statusBox = document.getElementById("statusBox");
+
+/* Push action into queue (matches display logic exactly) */
+function sendAction(name) {
+  queueRef.push({
+    name: name,
+    type: "manual",
+    ts: firebase.database.ServerValue.TIMESTAMP
+  });
+}
+
+/* Listen to nowPlaying to update UI */
+nowPlayingRef.on("value", snap => {
+  const data = snap.val();
+  if (!data || !data.name) return;
+  statusBox.textContent = "Now Playing: " + data.name;
+});
 </script>
 
 </body>
 </html>
- 
