@@ -9,78 +9,23 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <style>
-html, body {
-  margin: 0;
-  height: 100%;
-  overflow: hidden;
-  font-family: Arial, sans-serif;
-}
+html,body{margin:0;height:100%;overflow:hidden;font-family:sans-serif}
+#container{display:flex;height:100vh}
 
-#container {
-  display: flex;
-  height: 100vh;
-}
+#menu{width:50%;background:#6b8e6e;padding:12px;box-sizing:border-box}
+#right{width:50%;display:flex;flex-direction:column}
 
-#menu {
-  width: 50%;
-  background: #6b8e6e;
-  padding: 10px;
-  box-sizing: border-box;
-}
+#smallo{height:50%;background:#fff5e1;position:relative;overflow:hidden}
+#smallo video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+#idleVideo{z-index:1}
+#actionVideo{z-index:2;opacity:0;transition:opacity .15s linear}
 
-#right {
-  width: 50%;
-  display: flex;
-  flex-direction: column;
-}
-
-#smallo {
-  height: 50%;
-  position: relative;
-  background: #fff5e1;
-  overflow: hidden;
-}
-
-#smallo video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-#actionVideo {
-  opacity: 0;
-  transition: opacity 0.15s linear;
-}
-
-#productPreview {
-  height: 50%;
-  position: relative;
-  background: #000;
-  overflow: hidden;
-}
-
-.productImg {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  transition: opacity 0.6s ease;
-}
-
-#fsBtn {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  padding: 8px 12px;
-  background: rgba(0,0,0,0.6);
-  color: white;
-  border-radius: 10px;
-  cursor: pointer;
-  z-index: 9999;
+#productPreview{height:50%;background:#000;position:relative;overflow:hidden}
+.productImg{
+  position:absolute;inset:0;margin:auto;
+  max-width:100%;max-height:100%;
+  object-fit:contain;
+  transition:opacity .6s ease;
 }
 </style>
 </head>
@@ -88,33 +33,31 @@ html, body {
 
 <div id="container">
 
-  <div id="menu">
-    <iframe 
-      src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed"
-      style="width:100%;height:100%;border:none;"
-      allowfullscreen>
-    </iframe>
-  </div>
-
-  <div id="right">
-    <div id="smallo">
-      <video id="idleVideo" autoplay muted loop playsinline>
-        <source src="videos/idle.mp4" type="video/mp4">
-      </video>
-      <video id="actionVideo" muted playsinline></video>
-    </div>
-
-    <div id="productPreview">
-      <img id="imgA" class="productImg" src="product-previews/1.png" style="opacity:1">
-      <img id="imgB" class="productImg" src="product-previews/2.png" style="opacity:0">
-    </div>
-  </div>
-
+<div id="menu">
+  <iframe style="width:100%;height:100%;border:none"
+  src="https://www.canva.com/design/DAHA6CJLYFc/pb-pX-AMcbC9I1zxRAJEAg/view?embed"
+  allowfullscreen></iframe>
 </div>
 
-<div id="fsBtn">⛶ Fullscreen</div>
+<div id="right">
+
+<div id="smallo">
+  <video id="idleVideo" autoplay muted loop playsinline>
+    <source src="videos/idle.mp4" type="video/mp4">
+  </video>
+  <video id="actionVideo" muted playsinline></video>
+</div>
+
+<div id="productPreview">
+  <img id="imgA" class="productImg" src="product-previews/1.png" style="opacity:1">
+  <img id="imgB" class="productImg" src="product-previews/2.png" style="opacity:0">
+</div>
+
+</div>
+</div>
 
 <script>
+/* ================= FIREBASE ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   authDomain: "smallo-live.firebaseapp.com",
@@ -122,58 +65,14 @@ const firebaseConfig = {
   projectId: "smallo-live",
   storageBucket: "smallo-live.firebasestorage.app",
   messagingSenderId: "1017470725882",
-  appId: "1:1017470725882:web:929ee126247fcbb51e6343"
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+  measurementId: "G-QTZTK6G2XL"
 };
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ===== ACTION QUEUE SYSTEM ===== */
-
-const queue = [];
-let isPlaying = false;
-
-const idleVideo = document.getElementById("idleVideo");
-const actionVideo = document.getElementById("actionVideo");
-
-db.ref("actionQueue").on("child_added", snapshot => {
-  const data = snapshot.val();
-  queue.push({ key: snapshot.key, name: data.name });
-  processQueue();
-});
-
-function processQueue() {
-  if (isPlaying || queue.length === 0) return;
-
-  isPlaying = true;
-  const next = queue.shift();
-  playAction(next);
-}
-
-function playAction(actionObj) {
-  actionVideo.src = `videos/${actionObj.name}.mp4`;
-  actionVideo.load();
-  actionVideo.style.opacity = 1;
-
-  actionVideo.play().catch(() => reset(actionObj));
-
-  actionVideo.onended = () => reset(actionObj);
-  actionVideo.onerror = () => reset(actionObj);
-}
-
-function reset(actionObj) {
-  actionVideo.pause();
-  actionVideo.currentTime = 0;
-  actionVideo.style.opacity = 0;
-
-  db.ref("actionQueue/" + actionObj.key).remove();
-
-  isPlaying = false;
-  processQueue();
-}
-
-/* ===== PRODUCT CROSSFADE ===== */
-
+/* ================= PRODUCT CROSSFADE ================= */
 const productImgs = [
   "product-previews/1.png",
   "product-previews/2.png",
@@ -187,30 +86,66 @@ let showingA = true;
 const imgA = document.getElementById("imgA");
 const imgB = document.getElementById("imgB");
 
-setInterval(() => {
+setInterval(()=>{
   pIdx = (pIdx + 1) % productImgs.length;
   const incoming = showingA ? imgB : imgA;
   const outgoing = showingA ? imgA : imgB;
-
   incoming.src = productImgs[pIdx];
   incoming.style.opacity = 1;
   outgoing.style.opacity = 0;
-
   showingA = !showingA;
-}, 4000);
+},4000);
 
-/* ===== FULLSCREEN ===== */
+/* ================= STABLE ACTION QUEUE ================= */
+const idleVideo = document.getElementById("idleVideo");
+const actionVideo = document.getElementById("actionVideo");
 
-const fsBtn = document.getElementById("fsBtn");
+let queue = [];
+let playing = false;
 
-fsBtn.addEventListener("click", () => {
-  if (!document.fullscreenElement) {
-    document.documentElement.requestFullscreen?.();
-  } else {
-    document.exitFullscreen?.();
-  }
+// Listen for new actions
+db.ref("actionQueue").on("child_added", snap=>{
+  queue.push({ key:snap.key, name:snap.val() });
+  processQueue();
 });
+
+function processQueue(){
+  if(playing) return;
+  if(queue.length === 0) return;
+
+  playing = true;
+
+  const next = queue.shift();
+  playAction(next);
+}
+
+function playAction(item){
+  actionVideo.src = `videos/${item.name}.mp4`;
+  actionVideo.load();
+
+  actionVideo.style.opacity = 1;
+
+  actionVideo.play().catch(()=>{
+    finishAction(item);
+  });
+
+  actionVideo.onended = ()=> finishAction(item);
+  actionVideo.onerror = ()=> finishAction(item);
+}
+
+function finishAction(item){
+  actionVideo.pause();
+  actionVideo.currentTime = 0;
+  actionVideo.style.opacity = 0;
+
+  // remove from firebase
+  db.ref("actionQueue/"+item.key).remove();
+
+  playing = false;
+  processQueue();
+}
 </script>
 
 </body>
 </html>
+ 
