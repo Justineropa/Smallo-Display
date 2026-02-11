@@ -1,117 +1,40 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Smallo Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-  <style>
-    :root{--bg:#f6f7f8;--card:#fff;--accent:#6b8e6e}
-    body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);padding:20px}
-    .wrap{max-width:980px;margin:12px auto}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-    h1{margin:0;font-size:20px}
-    .panel{background:var(--card);border-radius:12px;padding:14px;margin-top:14px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-    button{padding:14px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
-    button:disabled{opacity:.45;cursor:not-allowed}
-    #queue{font-family:monospace;margin-top:10px;color:#333}
-    .small{font-size:13px;color:#666;margin-top:6px}
-  </style>
 </head>
+
 <body>
-<div class="wrap">
-  <header>
-    <h1>Smallo Control</h1>
-    <div id="nowPlaying" class="small">Now: idle</div>
-  </header>
 
-  <div class="panel">
-    <h3>Specific Actions</h3>
-    <div class="grid" style="grid-template-columns:repeat(3,1fr);">
-      <button id="btn-hello" onclick="enqueue('hello','specific')">Hello</button>
-      <button id="btn-hi" onclick="enqueue('hi','specific')">Hi</button>
-      <button id="btn-thank" onclick="enqueue('thank','specific')">Thank</button>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h3>Force Random Action</h3>
-    <div class="grid">
-      <button onclick="enqueue('smile','random')">Smile</button>
-      <button onclick="enqueue('look_around','random')">Look Around</button>
-      <button onclick="enqueue('sleep','random')">Sleep</button>
-    </div>
-    <div class="small">Random actions will be inserted into the queue and run in order.</div>
-  </div>
-
-  <div class="panel">
-    <h3>Queue</h3>
-    <div id="queue">Loading…</div>
-  </div>
-</div>
+<!-- KEEP YOUR EXISTING CONTROL UI EXACTLY THE SAME -->
+<!-- Just ensure buttons call sendAction('hello') etc -->
 
 <script>
-/* Firebase config (same) */
-const firebaseConfig = {
-  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-  authDomain: "smallo-live.firebaseapp.com",
-  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "smallo-live",
-  storageBucket: "smallo-live.firebasestorage.app",
-  messagingSenderId: "1017470725882",
-  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-  measurementId: "G-QTZTK6G2XL"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+    authDomain: "smallo-live.firebaseapp.com",
+    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "smallo-live",
+    storageBucket: "smallo-live.firebasestorage.app",
+    messagingSenderId: "1017470725882",
+    appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+    measurementId: "G-QTZTK6G2XL"
+  };
 
-const queueRef = db.ref("queue");
-const nowPlayingRef = db.ref("nowPlaying");
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-const btns = {
-  hello: document.getElementById("btn-hello"),
-  hi: document.getElementById("btn-hi"),
-  thank: document.getElementById("btn-thank")
-};
-
-function enqueue(name,type){
-  // push to queue with a timestamp
-  queueRef.push({ name, type, ts: firebase.database.ServerValue.TIMESTAMP }).catch(err=>console.warn(err));
-}
-
-/* show queue: read ordered by ts */
-function refreshQueueUI() {
-  queueRef.orderByChild("ts").once("value").then(snap=>{
-    const arr = [];
-    snap.forEach(child => {
-      const v = child.val();
-      arr.push(v.name);
+  function sendAction(actionName) {
+    db.ref("action").set({
+      name: actionName,
+      timestamp: Date.now()
     });
-    document.getElementById("queue").textContent = arr.length ? arr.join(" → ") : "Idle";
-  });
-}
-
-/* live updates */
-queueRef.on("value", snap => {
-  refreshQueueUI();
-});
-
-/* nowPlaying: disable buttons while action is playing */
-nowPlayingRef.on("value", snap => {
-  const val = snap.val();
-  const name = val && val.name ? val.name : "idle";
-  document.getElementById("nowPlaying").textContent = "Now: " + name;
-  const disabled = (name && name !== "idle");
-  // disable all action buttons if an action is currently playing
-  document.querySelectorAll("button").forEach(b => b.disabled = disabled);
-});
-
-/* initial UI refresh */
-refreshQueueUI();
+  }
 </script>
+
 </body>
 </html>
