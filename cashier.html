@@ -128,6 +128,13 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+  
+const itemSelect = document.getElementById("itemSelect");
+const sizeSelect = document.getElementById("sizeSelect");
+const syrupSelect = document.getElementById("syrupSelect");
+const orderList = document.getElementById("orderList");
+const totalDisplay = document.getElementById("totalDisplay");
+const orderNumberDisplay = document.getElementById("orderNumberDisplay");
 
 let cart = [];
 let total = 0;
