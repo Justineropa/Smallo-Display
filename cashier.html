@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smallo Cashier</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#FFF5E1;
+}
+
+header{
+  background:#6b8e6e;
+  color:white;
+  padding:15px;
+  text-align:center;
+  font-size:22px;
+}
+
+.container{
+  padding:15px;
+}
+
+select, button{
+  width:100%;
+  padding:10px;
+  margin-top:8px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:16px;
+}
+
+.toppings{
+  margin-top:10px;
+}
+
+.order-list{
+  margin-top:20px;
+  background:white;
+  padding:10px;
+  border-radius:10px;
+}
+
+.item{
+  border-bottom:1px solid #ddd;
+  padding:8px 0;
+}
+
+.total{
+  font-size:20px;
+  margin-top:10px;
+}
+
+.confirm{
+  background:#583621;
+  color:white;
+  font-weight:bold;
+  margin-top:15px;
+}
+
+.big-number{
+  text-align:center;
+  font-size:40px;
+  margin-top:20px;
+  color:#583621;
+}
+</style>
+</head>
+<body>
+
+<header>Smallo Cashier</header>
+
+<div class="container">
+
+<select id="itemSelect">
+  <option value="Torched">Torched Mallo</option>
+  <option value="Classic">Classic</option>
+  <option value="Dippy">Dippy</option>
+</select>
+
+<select id="sizeSelect">
+  <option value="Small">Small</option>
+  <option value="Big">Big</option>
+</select>
+
+<select id="syrupSelect">
+  <option value="Chocolate">Chocolate</option>
+  <option value="Caramel">Caramel</option>
+</select>
+
+<div class="toppings">
+<label><input type="checkbox" value="Sprinkles"> Sprinkles</label><br>
+<label><input type="checkbox" value="Crushed Oreos"> Crushed Oreos</label><br>
+<label><input type="checkbox" value="Nuts"> Nuts</label><br>
+<label><input type="checkbox" value="Chocolate Chips"> Chocolate Chips</label>
+</div>
+
+<button onclick="addItem()">Add To Order</button>
+
+<div class="order-list" id="orderList"></div>
+
+<div class="total" id="totalDisplay">Total: ₱0</div>
+
+<button class="confirm" onclick="confirmOrder()">Confirm Order</button>
+
+<div class="big-number" id="orderNumberDisplay"></div>
+
+</div>
+
+<script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+  authDomain: "smallo-live.firebaseapp.com",
+  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "smallo-live",
+  storageBucket: "smallo-live.firebasestorage.app",
+  messagingSenderId: "1017470725882",
+  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+  measurementId: "G-QTZTK6G2XL"
+};
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let cart = [];
+let total = 0;
+
+function getPrice(item, size){
+  if(item==="Torched"){
+    return size==="Small"?10:20;
+  }
+  if(item==="Classic"){
+    return size==="Small"?20:30;
+  }
+  if(item==="Dippy"){
+    return 40;
+  }
+}
+
+function addItem(){
+  const item = itemSelect.value;
+  let size = sizeSelect.value;
+  const syrup = syrupSelect.value;
+
+  if(item==="Dippy"){
+    size="Regular";
+  }
+
+  let toppings=[];
+  document.querySelectorAll(".toppings input:checked").forEach(cb=>{
+    toppings.push(cb.value);
+  });
+
+  let price = getPrice(item,size);
+  if(toppings.length>0) price+=4;
+
+  cart.push({item,size,syrup,toppings,price});
+  total+=price;
+
+  renderCart();
+}
+
+function renderCart(){
+  orderList.innerHTML="";
+  cart.forEach((c,i)=>{
+    orderList.innerHTML+=`
+      <div class="item">
+        ${c.item} (${c.size}) - ₱${c.price}
+      </div>
+    `;
+  });
+  totalDisplay.innerText="Total: ₱"+total;
+}
+
+function confirmOrder(){
+  if(cart.length===0) return;
+
+  db.ref("orderCounter/current").transaction(n=>{
+    return (n||0)+1;
+  },function(error,committed,snap){
+    if(committed){
+      const orderNum = snap.val();
+      const padded = String(orderNum).padStart(3,'0');
+
+      db.ref("orders/"+padded).set({
+        orderNumber:padded,
+        items:cart,
+        total:total,
+        status:"preparing",
+        createdAt:Date.now()
+      });
+
+      orderNumberDisplay.innerText="ORDER #"+padded;
+      cart=[];
+      total=0;
+      renderCart();
+    }
+  });
+}
+</script>
+
+</body>
+</html>
+ 
