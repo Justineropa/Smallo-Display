@@ -96,6 +96,25 @@ button{
   font-size:12px;
   border-radius:8px;
 }
+
+.fadeOut {
+  animation: fadeOutAnim 0.4s forwards;
+}
+
+@keyframes fadeOutAnim {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+.slideLeft {
+  animation: slideLeftAnim 0.4s forwards;
+}
+
+@keyframes slideLeftAnim {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(-60px); }
+}
+
 </style>
 </head>
 <body>
@@ -162,15 +181,37 @@ db.ref("orders").on("value",snap=>{
 });
 
 function completeOrder(orderNum){
-  const ref = db.ref("orders/"+orderNum);
-  ref.once("value",snap=>{
-    db.ref("completedOrders/"+orderNum).set({
-      ...snap.val(),
-      completedAt:Date.now()
+  const card = document.getElementById("card_"+orderNum);
+  card.classList.add("fadeOut");
+
+  setTimeout(()=>{
+    const ref = db.ref("orders/"+orderNum);
+    ref.once("value",snap=>{
+
+      const orderData = snap.val();
+
+      // SEND TO GOOGLE SHEETS
+      fetch("https://script.google.com/macros/s/AKfycby-xead888xnj_IHDO3HX8vygNaOcekg2sh4yhLy44dlyDJy5fJ4w2fqMTEHFgN9tAWdg/exec",{
+        method:"POST",
+        body:JSON.stringify({
+          orderNumber: orderData.orderNumber,
+          items: JSON.stringify(orderData.items),
+          total: orderData.total,
+          completedAt: Date.now()
+        })
+      });
+
+      db.ref("completedOrders/"+orderNum).set({
+        ...orderData,
+        completedAt:Date.now()
+      });
+
+      ref.remove();
+
     });
-    ref.remove();
-  });
+  },400);
 }
+
 
 function showCancel(orderNum){
   const box = document.getElementById("confirm_"+orderNum);
@@ -190,8 +231,14 @@ function hideCancel(orderNum){
 }
 
 function confirmCancel(orderNum){
-  db.ref("orders/"+orderNum).remove();
+  const card = document.getElementById("card_"+orderNum);
+  card.classList.add("slideLeft");
+
+  setTimeout(()=>{
+    db.ref("orders/"+orderNum).remove();
+  },400);
 }
+
 </script>
 
 </body>
