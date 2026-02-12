@@ -101,13 +101,13 @@ select, button{
 <label><input type="checkbox" value="Chocolate Chips"> Chocolate Chips</label>
 </div>
 
-<button onclick="addItem()">Add To Order</button>
+<button type="button" onclick="addItem()">Add To Order</button>
 
 <div class="order-list" id="orderList"></div>
 
 <div class="total" id="totalDisplay">Total: ₱0</div>
 
-<button class="confirm" onclick="confirmOrder()">Confirm Order</button>
+<button type="button" class="confirm" onclick="confirmOrder()">Confirm Order</button>
 
 <div class="big-number" id="orderNumberDisplay"></div>
 
@@ -152,6 +152,7 @@ function getPrice(item, size){
 }
 
 function addItem(){
+  alert("Add button works");
   const item = itemSelect.value;
   let size = sizeSelect.value;
   const syrup = syrupSelect.value;
