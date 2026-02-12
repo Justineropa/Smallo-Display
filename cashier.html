@@ -5,68 +5,96 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smallo Cashier</title>
 
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <style>
 body{
   margin:0;
-  font-family:Arial;
+  font-family:Arial, Helvetica, sans-serif;
   background:#FFF5E1;
 }
 
 header{
   background:#6b8e6e;
   color:white;
-  padding:15px;
+  padding:18px;
   text-align:center;
   font-size:22px;
+  border-bottom-left-radius:20px;
+  border-bottom-right-radius:20px;
 }
 
 .container{
-  padding:15px;
+  padding:18px;
 }
 
-select, button{
+.section{
+  background:white;
+  padding:15px;
+  border-radius:20px;
+  margin-bottom:15px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.08);
+}
+
+label{
+  font-weight:bold;
+  display:block;
+  margin-top:10px;
+}
+
+select{
   width:100%;
-  padding:10px;
-  margin-top:8px;
-  border-radius:8px;
+  padding:12px;
+  margin-top:6px;
+  border-radius:12px;
   border:1px solid #ccc;
   font-size:16px;
 }
 
-.toppings{
-  margin-top:10px;
+.toppings label{
+  font-weight:normal;
+  margin-top:5px;
 }
 
-.order-list{
-  margin-top:20px;
-  background:white;
-  padding:10px;
-  border-radius:10px;
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:16px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
 }
 
-.item{
-  border-bottom:1px solid #ddd;
+.addBtn{
+  background:#6b8e6e;
+  color:white;
+  margin-top:12px;
+}
+
+.confirmBtn{
+  background:#583621;
+  color:white;
+  margin-top:15px;
+}
+
+.itemRow{
   padding:8px 0;
+  border-bottom:1px solid #eee;
 }
 
 .total{
   font-size:20px;
-  margin-top:10px;
-}
-
-.confirm{
-  background:#583621;
-  color:white;
   font-weight:bold;
-  margin-top:15px;
+  margin-top:10px;
+  text-align:right;
 }
 
-.big-number{
+.bigNumber{
   text-align:center;
-  font-size:40px;
+  font-size:38px;
   margin-top:20px;
   color:#583621;
 }
@@ -74,85 +102,103 @@ select, button{
 </head>
 <body>
 
-<header>Smallo Cashier</header>
+<header>💵 Smallo Cashier</header>
 
 <div class="container">
 
+<div class="section">
+<label>Item</label>
 <select id="itemSelect">
   <option value="Torched">Torched Mallo</option>
   <option value="Classic">Classic</option>
   <option value="Dippy">Dippy</option>
 </select>
 
+<label>Size</label>
 <select id="sizeSelect">
   <option value="Small">Small</option>
   <option value="Big">Big</option>
 </select>
 
+<label>Syrup</label>
 <select id="syrupSelect">
   <option value="Chocolate">Chocolate</option>
   <option value="Caramel">Caramel</option>
 </select>
 
 <div class="toppings">
-<label><input type="checkbox" value="Sprinkles"> Sprinkles</label><br>
-<label><input type="checkbox" value="Crushed Oreos"> Crushed Oreos</label><br>
-<label><input type="checkbox" value="Nuts"> Nuts</label><br>
+<label>Optional Toppings (+₱4 per item)</label>
+<label><input type="checkbox" value="Sprinkles"> Sprinkles</label>
+<label><input type="checkbox" value="Crushed Oreos"> Crushed Oreos</label>
+<label><input type="checkbox" value="Nuts"> Nuts</label>
 <label><input type="checkbox" value="Chocolate Chips"> Chocolate Chips</label>
 </div>
 
-<button type="button" onclick="addItem()">Add To Order</button>
+<button type="button" class="addBtn" id="addBtn">Add To Order</button>
+</div>
 
-<div class="order-list" id="orderList"></div>
-
+<div class="section">
+<div id="orderList"></div>
 <div class="total" id="totalDisplay">Total: ₱0</div>
-
-<button type="button" class="confirm" onclick="confirmOrder()">Confirm Order</button>
-
-<div class="big-number" id="orderNumberDisplay"></div>
+<button type="button" class="confirmBtn" id="confirmBtn">Confirm Order</button>
+<div class="bigNumber" id="orderNumberDisplay"></div>
+</div>
 
 </div>
 
 <script>
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+/* ================= FIREBASE CONFIG ================= */
+/* ⚠️ REPLACE THIS WITH YOUR EXACT WORKING CONFIG */
 const firebaseConfig = {
-  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-  authDomain: "smallo-live.firebaseapp.com",
-  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "smallo-live",
-  storageBucket: "smallo-live.firebasestorage.app",
-  messagingSenderId: "1017470725882",
-  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-  measurementId: "G-QTZTK6G2XL"
+  apiKey: "PASTE_YOURS",
+  authDomain: "PASTE_YOURS",
+  databaseURL: "PASTE_YOURS",
+  projectId: "PASTE_YOURS",
+  storageBucket: "PASTE_YOURS",
+  messagingSenderId: "PASTE_YOURS",
+  appId: "PASTE_YOURS"
 };
-};
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-  
+
+/* ================= DOM REFERENCES ================= */
+
 const itemSelect = document.getElementById("itemSelect");
 const sizeSelect = document.getElementById("sizeSelect");
 const syrupSelect = document.getElementById("syrupSelect");
 const orderList = document.getElementById("orderList");
 const totalDisplay = document.getElementById("totalDisplay");
 const orderNumberDisplay = document.getElementById("orderNumberDisplay");
+const addBtn = document.getElementById("addBtn");
+const confirmBtn = document.getElementById("confirmBtn");
 
 let cart = [];
 let total = 0;
 
-function getPrice(item, size){
-  if(item==="Torched"){
-    return size==="Small"?10:20;
-  }
-  if(item==="Classic"){
-    return size==="Small"?20:30;
-  }
-  if(item==="Dippy"){
-    return 40;
-  }
+/* ================= PRICE LOGIC ================= */
+
+function getPrice(item,size){
+  if(item==="Torched") return size==="Small"?10:20;
+  if(item==="Classic") return size==="Small"?20:30;
+  if(item==="Dippy") return 40;
+  return 0;
 }
 
-function addItem(){
-  alert("Add button works");
+/* Disable size if Dippy selected */
+itemSelect.addEventListener("change",()=>{
+  if(itemSelect.value==="Dippy"){
+    sizeSelect.disabled = true;
+  }else{
+    sizeSelect.disabled = false;
+  }
+});
+
+/* ================= ADD ITEM ================= */
+
+addBtn.addEventListener("click",()=>{
+
   const item = itemSelect.value;
   let size = sizeSelect.value;
   const syrup = syrupSelect.value;
@@ -173,13 +219,15 @@ function addItem(){
   total+=price;
 
   renderCart();
-}
+});
+
+/* ================= RENDER ================= */
 
 function renderCart(){
   orderList.innerHTML="";
-  cart.forEach((c,i)=>{
+  cart.forEach(c=>{
     orderList.innerHTML+=`
-      <div class="item">
+      <div class="itemRow">
         ${c.item} (${c.size}) - ₱${c.price}
       </div>
     `;
@@ -187,12 +235,16 @@ function renderCart(){
   totalDisplay.innerText="Total: ₱"+total;
 }
 
-function confirmOrder(){
+/* ================= CONFIRM ORDER ================= */
+
+confirmBtn.addEventListener("click",()=>{
+
   if(cart.length===0) return;
 
   db.ref("orderCounter/current").transaction(n=>{
     return (n||0)+1;
-  },function(error,committed,snap){
+  },(error,committed,snap)=>{
+
     if(committed){
       const orderNum = snap.val();
       const padded = String(orderNum).padStart(3,'0');
@@ -206,14 +258,17 @@ function confirmOrder(){
       });
 
       orderNumberDisplay.innerText="ORDER #"+padded;
+
       cart=[];
       total=0;
       renderCart();
     }
-  });
-}
-</script>
 
+  });
+
+});
+
+</script>
 </body>
 </html>
  
