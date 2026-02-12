@@ -125,6 +125,13 @@ button{
   <option value="Chocolate">Chocolate</option>
   <option value="Caramel">Caramel</option>
 </select>
+  
+<label>Quantity</label>
+<div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+  <button type="button" id="minusQty" style="width:50px;">−</button>
+  <div id="qtyDisplay" style="font-size:18px; font-weight:bold; width:40px; text-align:center;">1</div>
+  <button type="button" id="plusQty" style="width:50px;">+</button>
+</div>
 
 <div class="toppings">
 <label>Optional Toppings (+₱4 per item)</label>
@@ -175,6 +182,23 @@ const totalDisplay = document.getElementById("totalDisplay");
 const orderNumberDisplay = document.getElementById("orderNumberDisplay");
 const addBtn = document.getElementById("addBtn");
 const confirmBtn = document.getElementById("confirmBtn");
+const minusQty = document.getElementById("minusQty");
+const plusQty = document.getElementById("plusQty");
+const qtyDisplay = document.getElementById("qtyDisplay");
+
+let quantity = 1;
+
+plusQty.addEventListener("click",()=>{
+  quantity++;
+  qtyDisplay.innerText = quantity;
+});
+
+minusQty.addEventListener("click",()=>{
+  if(quantity>1){
+    quantity--;
+    qtyDisplay.innerText = quantity;
+  }
+});
 
 let cart = [];
 let total = 0;
@@ -214,28 +238,48 @@ addBtn.addEventListener("click",()=>{
     toppings.push(cb.value);
   });
 
-  let price = getPrice(item,size);
-  if(toppings.length>0) price+=4;
+  let basePrice = getPrice(item,size);
+  if(toppings.length>0) basePrice+=4;
 
-  cart.push({item,size,syrup,toppings,price});
-  total+=price;
+  let totalItemPrice = basePrice * quantity;
+
+  cart.push({
+    item,
+    size,
+    syrup,
+    toppings,
+    quantity,
+    price: totalItemPrice
+  });
+
+  total += totalItemPrice;
+
+  quantity = 1;
+  qtyDisplay.innerText = "1";
 
   renderCart();
 });
+
 
 /* ================= RENDER ================= */
 
 function renderCart(){
   orderList.innerHTML="";
   cart.forEach(c=>{
+    let toppingText = c.toppings.length>0 ? 
+      " | Toppings: "+c.toppings.join(", ") : "";
+
     orderList.innerHTML+=`
       <div class="itemRow">
-        ${c.item} (${c.size}) - ₱${c.price}
+        ${c.item} (${c.size}, ${c.syrup}) ${toppingText}
+        <br>
+        ${c.quantity}x — ₱${c.price}
       </div>
     `;
   });
   totalDisplay.innerText="Total: ₱"+total;
 }
+
 
 /* ================= CONFIRM ORDER ================= */
 
