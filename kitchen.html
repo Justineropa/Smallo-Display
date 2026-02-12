@@ -11,40 +11,90 @@
 <style>
 body{
   margin:0;
-  font-family:Arial;
+  font-family:Arial, Helvetica, sans-serif;
   background:#583621;
-  color:white;
 }
 
 header{
   background:#6b8e6e;
-  padding:15px;
+  color:white;
+  padding:18px;
   text-align:center;
   font-size:22px;
+  border-bottom-left-radius:20px;
+  border-bottom-right-radius:20px;
 }
 
 .grid{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-  gap:15px;
-  padding:15px;
+  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  gap:18px;
+  padding:18px;
 }
 
 .card{
   background:#FFF5E1;
-  color:black;
-  padding:10px;
-  border-radius:10px;
+  border-radius:20px;
+  padding:15px;
+  box-shadow:0 6px 16px rgba(0,0,0,0.15);
+  position:relative;
+  transition:transform .15s;
+}
+
+.card:hover{
+  transform:scale(1.02);
+}
+
+.orderNumber{
+  font-size:22px;
+  font-weight:bold;
+  color:#583621;
+  margin-bottom:10px;
+}
+
+.itemRow{
+  font-size:14px;
+  margin-bottom:6px;
+}
+
+.total{
+  font-weight:bold;
+  margin-top:8px;
 }
 
 button{
-  margin-top:10px;
-  padding:8px;
   width:100%;
-  background:#6b8e6e;
+  padding:10px;
   border:none;
-  border-radius:8px;
+  border-radius:12px;
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:8px;
+}
+
+.completeBtn{
+  background:#6b8e6e;
   color:white;
+}
+
+.cancelBtn{
+  background:#b13a3a;
+  color:white;
+}
+
+.confirmBox{
+  background:#ffe0e0;
+  padding:10px;
+  border-radius:12px;
+  margin-top:8px;
+  text-align:center;
+}
+
+.smallBtn{
+  width:48%;
+  padding:6px;
+  font-size:12px;
+  border-radius:8px;
 }
 </style>
 </head>
@@ -54,7 +104,8 @@ button{
 <div class="grid" id="ordersGrid"></div>
 
 <script>
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+
+/* Firebase Config */
 const firebaseConfig = {
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   authDomain: "smallo-live.firebaseapp.com",
@@ -65,6 +116,7 @@ const firebaseConfig = {
   appId: "1:1017470725882:web:929ee126247fcbb51e6343",
   measurementId: "G-QTZTK6G2XL"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
@@ -72,39 +124,75 @@ const grid = document.getElementById("ordersGrid");
 
 db.ref("orders").on("value",snap=>{
   grid.innerHTML="";
+
   snap.forEach(child=>{
     const data = child.val();
+    const orderNum = data.orderNumber;
+
     const card = document.createElement("div");
     card.className="card";
+    card.id="card_"+orderNum;
 
     let itemsHTML="";
     data.items.forEach(i=>{
-      itemsHTML+=`<div>${i.item} (${i.size})</div>`;
+      let toppingsText = i.toppings && i.toppings.length>0 ?
+        " | "+i.toppings.join(", ") : "";
+
+      itemsHTML+=`
+        <div class="itemRow">
+          ${i.item} (${i.size}, ${i.syrup})
+          ${toppingsText}
+          <br>
+          ${i.quantity}x
+        </div>
+      `;
     });
 
     card.innerHTML=`
-      <h3>#${data.orderNumber}</h3>
+      <div class="orderNumber">#${orderNum}</div>
       ${itemsHTML}
-      <div><strong>Total: ₱${data.total}</strong></div>
-      <button onclick="complete('${data.orderNumber}')">Mark Completed</button>
+      <div class="total">Total: ₱${data.total}</div>
+      <button class="completeBtn" onclick="completeOrder('${orderNum}')">Mark Completed</button>
+      <button class="cancelBtn" onclick="showCancel('${orderNum}')">Cancel Order</button>
+      <div id="confirm_${orderNum}"></div>
     `;
 
     grid.appendChild(card);
   });
 });
 
-function complete(orderNum){
-  const orderRef = db.ref("orders/"+orderNum);
-  orderRef.once("value",snap=>{
+function completeOrder(orderNum){
+  const ref = db.ref("orders/"+orderNum);
+  ref.once("value",snap=>{
     db.ref("completedOrders/"+orderNum).set({
       ...snap.val(),
       completedAt:Date.now()
     });
-    orderRef.remove();
+    ref.remove();
   });
+}
+
+function showCancel(orderNum){
+  const box = document.getElementById("confirm_"+orderNum);
+  box.innerHTML=`
+    <div class="confirmBox">
+      Cancel this order?
+      <div style="display:flex; justify-content:space-between; margin-top:8px;">
+        <button class="smallBtn" onclick="confirmCancel('${orderNum}')">Yes</button>
+        <button class="smallBtn" onclick="hideCancel('${orderNum}')">No</button>
+      </div>
+    </div>
+  `;
+}
+
+function hideCancel(orderNum){
+  document.getElementById("confirm_"+orderNum).innerHTML="";
+}
+
+function confirmCancel(orderNum){
+  db.ref("orders/"+orderNum).remove();
 }
 </script>
 
 </body>
 </html>
- 
