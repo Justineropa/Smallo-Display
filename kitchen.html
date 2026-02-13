@@ -90,7 +90,6 @@
       border-radius:6px;
       width:100%;
     }
-
   </style>
 </head>
 <body>
@@ -111,29 +110,38 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-
   const container = document.getElementById("ordersContainer");
 
   db.ref("orders").on("value", snapshot => {
+
     container.innerHTML = "";
 
+    if (!snapshot.exists()) return;
+
     snapshot.forEach(child => {
+
       const order = child.val();
       const orderId = child.key;
 
-      if(order.status !== "preparing") return;
+      if (!order || order.status !== "preparing") return;
+
+      // SAFE ITEMS PARSE
+      let itemsHtml = "No items";
+      if (Array.isArray(order.items)) {
+        itemsHtml = order.items.map(i => {
+          return `${i.item || ""} (${i.size || ""}, ${i.syrup || ""}) x${i.quantity || 1}`;
+        }).join("<br>");
+      }
 
       const card = document.createElement("div");
       card.className = "orderCard";
 
       card.innerHTML = `
         <div class="orderHeader">
-          Order #${order.orderNumber}
+          Order #${order.orderNumber || "---"}
         </div>
         <div class="items">
-          ${order.items.map(i =>
-            `${i.item} (${i.size || ""}, ${i.syrup || ""}) x${i.quantity}`
-          ).join("<br>")}
+          ${itemsHtml}
         </div>
         <div class="btnRow">
           <button class="completeBtn">Complete</button>
@@ -152,15 +160,13 @@
       const confirmBox = card.querySelector(".confirmBox");
       const confirmCancelBtn = confirmBox.querySelector("button");
 
-      /* COMPLETE ORDER */
+      // COMPLETE
       completeBtn.onclick = () => {
 
-        // Change status to completed first (for Sheets logging)
         db.ref("orders/" + orderId).update({
           status: "completed"
         }).then(() => {
 
-          // Then remove from Firebase completely
           return db.ref("orders/" + orderId).remove();
 
         }).then(() => {
@@ -171,12 +177,10 @@
             card.remove();
           }, 400);
 
-        }).catch(err => {
-          console.error(err);
-        });
+        }).catch(console.error);
       };
 
-      /* CANCEL BUTTON */
+      // CANCEL
       cancelBtn.onclick = () => {
         confirmBox.style.display = "block";
       };
@@ -191,16 +195,14 @@
             card.remove();
           }, 400);
 
-        }).catch(err => {
-          console.error(err);
-        });
+        }).catch(console.error);
       };
 
     });
 
   });
-
 </script>
 
 </body>
 </html>
+ 
