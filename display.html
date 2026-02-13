@@ -223,21 +223,32 @@ setInterval(maybeEnqueueRandom, 9000 + Math.floor(Math.random()*3000));
 function maybeBlink(){ if (processing) return; if(Math.random()<0.45){ queueRef.push({ name:"blink", type:"blink", ts: firebase.database.ServerValue.TIMESTAMP }); } }
 setInterval(maybeBlink, 8000 + Math.floor(Math.random()*3000));
 
-/* ================== Products carousel ================== */
-const productImgs = [
-  "product-previews/1.png",
-  "product-previews/2.png",
-  "product-previews/3.png",
-  "product-previews/4.png",
-  "product-previews/5.png"
-];
-let pIdx = 0;
-const productImgEl = document.getElementById("productImg");
-setInterval(()=>{
-  pIdx = (pIdx + 1) % productImgs.length;
-  productImgEl.style.opacity = 0;
-  setTimeout(()=>{ productImgEl.src = productImgs[pIdx]; productImgEl.style.opacity = 1; }, 280);
-}, 4000);
+/* ================== Preparing Orders ================== */
+
+const prepContainer = document.getElementById("prepContainer");
+
+db.ref("orders").on("value", snapshot => {
+  prepContainer.innerHTML = "";
+
+  snapshot.forEach(child => {
+    const order = child.val();
+
+    if (order.status !== "preparing") return;
+
+    const div = document.createElement("div");
+    div.className = "prepCard";
+
+    div.innerHTML = `
+      <strong>Order #${order.orderNumber}</strong><br>
+      ${order.items.map(i => 
+        i.item + " x" + i.quantity
+      ).join("<br>")}
+    `;
+
+    prepContainer.appendChild(div);
+  });
+});
+
 
 /* ================== Fullscreen ================== */
 fsBtn.addEventListener("click", () => {
