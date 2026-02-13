@@ -1,244 +1,204 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smallo Kitchen</title>
+  <title>Smallo Kitchen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<style>
-body{
-  margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#583621;
-}
+  <style>
+    body {
+      margin:0;
+      font-family: Arial, sans-serif;
+      background:#f5f5f5;
+    }
 
-header{
-  background:#6b8e6e;
-  color:white;
-  padding:18px;
-  text-align:center;
-  font-size:22px;
-  border-bottom-left-radius:20px;
-  border-bottom-right-radius:20px;
-}
+    #ordersContainer {
+      padding:15px;
+      display:grid;
+      gap:15px;
+    }
 
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
-  gap:18px;
-  padding:18px;
-}
+    .orderCard {
+      background:white;
+      padding:15px;
+      border-radius:14px;
+      box-shadow:0 4px 10px rgba(0,0,0,0.1);
+      transition:0.4s ease;
+    }
 
-.card{
-  background:#FFF5E1;
-  border-radius:20px;
-  padding:15px;
-  box-shadow:0 6px 16px rgba(0,0,0,0.15);
-  position:relative;
-  transition:transform .15s;
-}
+    .orderCard.fadeOut {
+      opacity:0;
+      transform:scale(0.95);
+    }
 
-.card:hover{
-  transform:scale(1.02);
-}
+    .orderCard.slideOut {
+      transform:translateX(-100%);
+      opacity:0;
+    }
 
-.orderNumber{
-  font-size:22px;
-  font-weight:bold;
-  color:#583621;
-  margin-bottom:10px;
-}
+    .orderHeader {
+      font-weight:bold;
+      margin-bottom:8px;
+      font-size:18px;
+    }
 
-.itemRow{
-  font-size:14px;
-  margin-bottom:6px;
-}
+    .items {
+      font-size:14px;
+      margin-bottom:10px;
+    }
 
-.total{
-  font-weight:bold;
-  margin-top:8px;
-}
+    .btnRow {
+      display:flex;
+      gap:10px;
+    }
 
-button{
-  width:100%;
-  padding:10px;
-  border:none;
-  border-radius:12px;
-  font-weight:bold;
-  cursor:pointer;
-  margin-top:8px;
-}
+    button {
+      flex:1;
+      padding:8px;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+    }
 
-.completeBtn{
-  background:#6b8e6e;
-  color:white;
-}
+    .completeBtn {
+      background:#4CAF50;
+      color:white;
+    }
 
-.cancelBtn{
-  background:#b13a3a;
-  color:white;
-}
+    .cancelBtn {
+      background:#e53935;
+      color:white;
+    }
 
-.confirmBox{
-  background:#ffe0e0;
-  padding:10px;
-  border-radius:12px;
-  margin-top:8px;
-  text-align:center;
-}
+    .confirmBox {
+      margin-top:8px;
+      background:#ffecec;
+      padding:8px;
+      border-radius:8px;
+      font-size:13px;
+      display:none;
+    }
 
-.smallBtn{
-  width:48%;
-  padding:6px;
-  font-size:12px;
-  border-radius:8px;
-}
+    .confirmBox button {
+      margin-top:6px;
+      background:#e53935;
+      color:white;
+      padding:6px;
+      border-radius:6px;
+      width:100%;
+    }
 
-.fadeOut {
-  animation: fadeOutAnim 0.4s forwards;
-}
-
-@keyframes fadeOutAnim {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.95); }
-}
-
-.slideLeft {
-  animation: slideLeftAnim 0.4s forwards;
-}
-
-@keyframes slideLeftAnim {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(-60px); }
-}
-
-</style>
+  </style>
 </head>
 <body>
 
-<header>🍳 Kitchen Orders</header>
-<div class="grid" id="ordersGrid"></div>
+<div id="ordersContainer"></div>
 
 <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
+    authDomain: "smallo-live.firebaseapp.com",
+    databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "smallo-live",
+    storageBucket: "smallo-live.firebasestorage.app",
+    messagingSenderId: "1017470725882",
+    appId: "1:1017470725882:web:929ee126247fcbb51e6343",
+    measurementId: "G-QTZTK6G2XL"
+  };
 
-/* Firebase Config */
-const firebaseConfig = {
-  apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
-  authDomain: "smallo-live.firebaseapp.com",
-  databaseURL: "https://smallo-live-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "smallo-live",
-  storageBucket: "smallo-live.firebasestorage.app",
-  messagingSenderId: "1017470725882",
-  appId: "1:1017470725882:web:929ee126247fcbb51e6343",
-  measurementId: "G-QTZTK6G2XL"
-};
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  const container = document.getElementById("ordersContainer");
 
-const grid = document.getElementById("ordersGrid");
+  db.ref("orders").on("value", snapshot => {
+    container.innerHTML = "";
 
-db.ref("orders").on("value",snap=>{
-  grid.innerHTML="";
+    snapshot.forEach(child => {
+      const order = child.val();
+      const orderId = child.key;
 
-  snap.forEach(child=>{
-    const data = child.val();
-    const orderNum = data.orderNumber;
+      if(order.status !== "preparing") return;
 
-    const card = document.createElement("div");
-    card.className="card";
-    card.id="card_"+orderNum;
+      const card = document.createElement("div");
+      card.className = "orderCard";
 
-    let itemsHTML="";
-    data.items.forEach(i=>{
-      let toppingsText = i.toppings && i.toppings.length>0 ?
-        " | "+i.toppings.join(", ") : "";
-
-      itemsHTML+=`
-        <div class="itemRow">
-          ${i.item} (${i.size}, ${i.syrup})
-          ${toppingsText}
-          <br>
-          ${i.quantity}x
+      card.innerHTML = `
+        <div class="orderHeader">
+          Order #${order.orderNumber}
+        </div>
+        <div class="items">
+          ${order.items.map(i =>
+            `${i.item} (${i.size || ""}, ${i.syrup || ""}) x${i.quantity}`
+          ).join("<br>")}
+        </div>
+        <div class="btnRow">
+          <button class="completeBtn">Complete</button>
+          <button class="cancelBtn">Cancel</button>
+        </div>
+        <div class="confirmBox">
+          Are you sure you want to cancel?
+          <button>Confirm Cancel</button>
         </div>
       `;
+
+      container.appendChild(card);
+
+      const completeBtn = card.querySelector(".completeBtn");
+      const cancelBtn = card.querySelector(".cancelBtn");
+      const confirmBox = card.querySelector(".confirmBox");
+      const confirmCancelBtn = confirmBox.querySelector("button");
+
+      /* COMPLETE ORDER */
+      completeBtn.onclick = () => {
+
+        // Change status to completed first (for Sheets logging)
+        db.ref("orders/" + orderId).update({
+          status: "completed"
+        }).then(() => {
+
+          // Then remove from Firebase completely
+          return db.ref("orders/" + orderId).remove();
+
+        }).then(() => {
+
+          card.classList.add("fadeOut");
+
+          setTimeout(() => {
+            card.remove();
+          }, 400);
+
+        }).catch(err => {
+          console.error(err);
+        });
+      };
+
+      /* CANCEL BUTTON */
+      cancelBtn.onclick = () => {
+        confirmBox.style.display = "block";
+      };
+
+      confirmCancelBtn.onclick = () => {
+
+        db.ref("orders/" + orderId).remove().then(() => {
+
+          card.classList.add("slideOut");
+
+          setTimeout(() => {
+            card.remove();
+          }, 400);
+
+        }).catch(err => {
+          console.error(err);
+        });
+      };
+
     });
 
-    card.innerHTML=`
-      <div class="orderNumber">#${orderNum}</div>
-      ${itemsHTML}
-      <div class="total">Total: ₱${data.total}</div>
-      <button class="completeBtn" onclick="completeOrder('${orderNum}')">Mark Completed</button>
-      <button class="cancelBtn" onclick="showCancel('${orderNum}')">Cancel Order</button>
-      <div id="confirm_${orderNum}"></div>
-    `;
-
-    grid.appendChild(card);
   });
-});
-
-function completeOrder(orderNum){
-  const card = document.getElementById("card_"+orderNum);
-  card.classList.add("fadeOut");
-
-  setTimeout(()=>{
-    const ref = db.ref("orders/"+orderNum);
-    ref.once("value",snap=>{
-
-      const orderData = snap.val();
-
-      // SEND TO GOOGLE SHEETS
-      fetch("https://script.google.com/macros/s/AKfycby-xead888xnj_IHDO3HX8vygNaOcekg2sh4yhLy44dlyDJy5fJ4w2fqMTEHFgN9tAWdg/exec", {
-  method: "POST",
-  body: JSON.stringify({
-    orderNumber: order.orderNumber,
-    items: JSON.stringify(order.items), // IMPORTANT
-    total: order.total,
-    completedAt: new Date().toISOString()
-  })
-});
-
-
-      db.ref("completedOrders/"+orderNum).set({
-        ...orderData,
-        completedAt:Date.now()
-      });
-
-      ref.remove();
-
-    });
-  },400);
-}
-
-
-function showCancel(orderNum){
-  const box = document.getElementById("confirm_"+orderNum);
-  box.innerHTML=`
-    <div class="confirmBox">
-      Cancel this order?
-      <div style="display:flex; justify-content:space-between; margin-top:8px;">
-        <button class="smallBtn" onclick="confirmCancel('${orderNum}')">Yes</button>
-        <button class="smallBtn" onclick="hideCancel('${orderNum}')">No</button>
-      </div>
-    </div>
-  `;
-}
-
-function hideCancel(orderNum){
-  document.getElementById("confirm_"+orderNum).innerHTML="";
-}
-
-function confirmCancel(orderNum){
-  const card = document.getElementById("card_"+orderNum);
-  card.classList.add("slideLeft");
-
-  setTimeout(()=>{
-    db.ref("orders/"+orderNum).remove();
-  },400);
-}
 
 </script>
 
