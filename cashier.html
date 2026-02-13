@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Smallo Cashier</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
@@ -26,9 +25,7 @@ header{
   border-bottom-right-radius:20px;
 }
 
-.container{
-  padding:18px;
-}
+.container{ padding:18px; }
 
 .section{
   background:white;
@@ -53,11 +50,6 @@ select{
   font-size:16px;
 }
 
-.toppings label{
-  font-weight:normal;
-  margin-top:5px;
-}
-
 button{
   width:100%;
   padding:14px;
@@ -68,16 +60,20 @@ button{
   cursor:pointer;
 }
 
-.addBtn{
-  background:#6b8e6e;
-  color:white;
-  margin-top:12px;
+.addBtn{ background:#6b8e6e; color:white; margin-top:12px; }
+.confirmBtn{ background:#583621; color:white; margin-top:15px; }
+
+.qtyRow{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:6px;
 }
 
-.confirmBtn{
-  background:#583621;
-  color:white;
-  margin-top:15px;
+.qtyBtn{
+  width:50px;
+  border-radius:12px;
+  background:#eee;
 }
 
 .itemRow{
@@ -125,16 +121,25 @@ button{
   <option value="Chocolate">Chocolate</option>
   <option value="Caramel">Caramel</option>
 </select>
-  
+
+<!-- Dippy extra option -->
+<div id="dippyOption" style="display:none;">
+  <label>Dippy Type</label>
+  <select id="dippyType">
+    <option value="With Grahams">With Grahams</option>
+    <option value="With Chips">With Chips</option>
+  </select>
+</div>
+
 <label>Quantity</label>
-<div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
-  <button type="button" id="minusQty" style="width:50px;">−</button>
-  <div id="qtyDisplay" style="font-size:18px; font-weight:bold; width:40px; text-align:center;">1</div>
-  <button type="button" id="plusQty" style="width:50px;">+</button>
+<div class="qtyRow">
+  <button type="button" class="qtyBtn" id="minusQty">−</button>
+  <div id="qtyDisplay" style="font-size:18px;font-weight:bold;width:40px;text-align:center;">1</div>
+  <button type="button" class="qtyBtn" id="plusQty">+</button>
 </div>
 
 <div class="toppings">
-<label>Optional Toppings (+₱4 per item)</label>
+<label>Optional Toppings</label>
 <label><input type="checkbox" value="Sprinkles"> Sprinkles</label>
 <label><input type="checkbox" value="Crushed Oreos"> Crushed Oreos</label>
 <label><input type="checkbox" value="Nuts"> Nuts</label>
@@ -155,9 +160,7 @@ button{
 
 <script>
 
-/* ================= FIREBASE CONFIG ================= */
-/* ⚠️ REPLACE THIS WITH YOUR EXACT WORKING CONFIG */
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyC7FVnMrkhPIF3fJE0JZEmwjDALSFc7SFc",
   authDomain: "smallo-live.firebaseapp.com",
@@ -172,39 +175,36 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ================= DOM REFERENCES ================= */
-
+/* DOM */
 const itemSelect = document.getElementById("itemSelect");
 const sizeSelect = document.getElementById("sizeSelect");
 const syrupSelect = document.getElementById("syrupSelect");
+const dippyOption = document.getElementById("dippyOption");
+const dippyType = document.getElementById("dippyType");
 const orderList = document.getElementById("orderList");
 const totalDisplay = document.getElementById("totalDisplay");
 const orderNumberDisplay = document.getElementById("orderNumberDisplay");
-const addBtn = document.getElementById("addBtn");
-const confirmBtn = document.getElementById("confirmBtn");
-const minusQty = document.getElementById("minusQty");
-const plusQty = document.getElementById("plusQty");
-const qtyDisplay = document.getElementById("qtyDisplay");
 
 let quantity = 1;
-
-plusQty.addEventListener("click",()=>{
-  quantity++;
-  qtyDisplay.innerText = quantity;
-});
-
-minusQty.addEventListener("click",()=>{
-  if(quantity>1){
-    quantity--;
-    qtyDisplay.innerText = quantity;
-  }
-});
-
 let cart = [];
 let total = 0;
 
-/* ================= PRICE LOGIC ================= */
+/* Quantity */
+plusQty.onclick=()=>{ quantity++; qtyDisplay.innerText=quantity; };
+minusQty.onclick=()=>{ if(quantity>1){quantity--; qtyDisplay.innerText=quantity;} };
 
+/* Show Dippy option */
+itemSelect.addEventListener("change",()=>{
+  if(itemSelect.value==="Dippy"){
+    sizeSelect.disabled=true;
+    dippyOption.style.display="block";
+  }else{
+    sizeSelect.disabled=false;
+    dippyOption.style.display="none";
+  }
+});
+
+/* PRICE LOGIC */
 function getPrice(item,size){
   if(item==="Torched") return size==="Small"?10:20;
   if(item==="Classic") return size==="Small"?20:30;
@@ -212,66 +212,40 @@ function getPrice(item,size){
   return 0;
 }
 
-/* Disable size if Dippy selected */
-itemSelect.addEventListener("change",()=>{
-  if(itemSelect.value==="Dippy"){
-    sizeSelect.disabled = true;
-  }else{
-    sizeSelect.disabled = false;
-  }
-});
+/* ADD TO CART */
+addBtn.onclick=()=>{
+  const item=itemSelect.value;
+  let size=sizeSelect.value;
+  const syrup=syrupSelect.value;
 
-/* ================= ADD ITEM ================= */
-
-addBtn.addEventListener("click",()=>{
-
-  const item = itemSelect.value;
-  let size = sizeSelect.value;
-  const syrup = syrupSelect.value;
-
-  if(item==="Dippy"){
-    size="Regular";
-  }
+  if(item==="Dippy") size=dippyType.value;
 
   let toppings=[];
   document.querySelectorAll(".toppings input:checked").forEach(cb=>{
     toppings.push(cb.value);
   });
 
-  let basePrice = getPrice(item,size);
-  if(toppings.length>0) basePrice+=4;
-
-  let totalItemPrice = basePrice * quantity;
+  let base=getPrice(item,size);
+  let totalItem=base*quantity;
 
   cart.push({
-    item,
-    size,
-    syrup,
-    toppings,
-    quantity,
-    price: totalItemPrice
+    item,size,syrup,toppings,quantity,price:totalItem
   });
 
-  total += totalItemPrice;
-
-  quantity = 1;
-  qtyDisplay.innerText = "1";
-
+  total+=totalItem;
+  quantity=1;
+  qtyDisplay.innerText=1;
   renderCart();
-});
+};
 
-
-/* ================= RENDER ================= */
-
+/* RENDER CART */
 function renderCart(){
   orderList.innerHTML="";
   cart.forEach(c=>{
-    let toppingText = c.toppings.length>0 ? 
-      " | Toppings: "+c.toppings.join(", ") : "";
-
+    let top=c.toppings.length>0?" | "+c.toppings.join(", "):"";
     orderList.innerHTML+=`
       <div class="itemRow">
-        ${c.item} (${c.size}, ${c.syrup}) ${toppingText}
+        ${c.item} (${c.size}, ${c.syrup}) ${top}
         <br>
         ${c.quantity}x — ₱${c.price}
       </div>
@@ -280,41 +254,32 @@ function renderCart(){
   totalDisplay.innerText="Total: ₱"+total;
 }
 
-
-/* ================= CONFIRM ORDER ================= */
-
-confirmBtn.addEventListener("click",()=>{
-
+/* CONFIRM ORDER */
+confirmBtn.onclick=()=>{
   if(cart.length===0) return;
 
-  db.ref("orderCounter/current").transaction(n=>{
-    return (n||0)+1;
-  },(error,committed,snap)=>{
-
+  db.ref("orderCounter/current").transaction(n=>(n||0)+1,
+  (error,committed,snap)=>{
     if(committed){
-      const orderNum = snap.val();
-      const padded = String(orderNum).padStart(3,'0');
+      const num=String(snap.val()).padStart(3,'0');
 
-      db.ref("orders/"+padded).set({
-        orderNumber:padded,
+      db.ref("orders/"+num).set({
+        orderNumber:num,
         items:cart,
         total:total,
         status:"preparing",
         createdAt:Date.now()
       });
 
-      orderNumberDisplay.innerText="ORDER #"+padded;
+      orderNumberDisplay.innerText="ORDER #"+num;
 
       cart=[];
       total=0;
       renderCart();
     }
-
   });
-
-});
+};
 
 </script>
 </body>
 </html>
- 
